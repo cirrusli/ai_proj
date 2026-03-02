@@ -487,23 +487,27 @@ async def save_api_keys(request: Request):
     model_id = data.get("model_id")
     
     # 验证输入
-    if not provider or not api_key:
-        raise HTTPException(status_code=400, detail="provider 和 api_key 不能为空")
+    if not provider:
+        raise HTTPException(status_code=400, detail="provider 不能为空")
     
     if provider not in ["tencent", "aliyun"]:
         raise HTTPException(status_code=400, detail="不支持的 provider")
     
-    # 验证 API Key 格式（基本检查）
-    if len(api_key) < 10:
-        raise HTTPException(status_code=400, detail="API Key 格式不正确")
-    
     conn = sqlite3.connect('chat_history.db')
     cursor = conn.cursor()
     try:
-        # 先删除旧的，再插入新的
-        cursor.execute("DELETE FROM api_keys WHERE user_id = ? AND provider = ?", (request.state.user['id'], provider))
-        cursor.execute("INSERT INTO api_keys (user_id, provider, api_key, model_id) VALUES (?, ?, ?, ?)", 
-                       (request.state.user['id'], provider, api_key, model_id))
+        if api_key is None:
+            # 只更新 model_id（切换模型）
+            cursor.execute("UPDATE api_keys SET model_id = ? WHERE user_id = ? AND provider = ?", 
+                           (model_id, request.state.user['id'], provider))
+        else:
+            # 验证 API Key 格式（基本检查）
+            if len(api_key) < 10:
+                raise HTTPException(status_code=400, detail="API Key 格式不正确")
+            # 先删除旧的，再插入新的
+            cursor.execute("DELETE FROM api_keys WHERE user_id = ? AND provider = ?", (request.state.user['id'], provider))
+            cursor.execute("INSERT INTO api_keys (user_id, provider, api_key, model_id) VALUES (?, ?, ?, ?)", 
+                           (request.state.user['id'], provider, api_key, model_id))
         conn.commit()
     finally:
         conn.close()

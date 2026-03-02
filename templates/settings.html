@@ -441,16 +441,20 @@
         
         async function switchModel(provider, modelId) {
             try {
-                const key = document.getElementById(provider === 'tencent' ? 'tencentKey' : 'aliyunKey').value;
-                await fetch('/api/keys', {
+                // 只更新 model_id，不发送 api_key
+                const resp = await fetch('/api/keys', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
                         provider, 
-                        api_key: '••••••••',  // 占位符，后端会保留原 key
+                        api_key: null,  // null 表示不更新 key
                         model_id: modelId
                     })
                 });
+                if (!resp.ok) {
+                    const data = await resp.json();
+                    throw new Error(data.detail || '切换失败');
+                }
                 currentModels[provider] = modelId;
                 // 刷新显示
                 await loadKeys();
