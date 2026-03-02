@@ -525,6 +525,37 @@ async def delete_api_key(provider: str, request: Request):
     
     return {"success": True}
 
+@app.get("/api/history")
+async def get_chat_history(session_id: str, limit: int = 20, request: Request = None):
+    """获取对话历史记录"""
+    if not request or not hasattr(request.state, 'user'):
+        raise HTTPException(status_code=401, detail="未登录")
+    
+    conn = sqlite3.connect('chat_history.db')
+    try:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT id, session_id, round, user_message, model_responses, timestamp 
+            FROM chat_history 
+            WHERE session_id = ? AND user_id = ?
+            ORDER BY round ASC
+            LIMIT ?
+        """, (session_id, request.state.user['id'], limit))
+        
+        history = []
+        for row in cursor.fetchall():
+            history.append({
+                "id": row[0],
+                "session_id": row[1],
+                "round": row[2],
+                "user_message": row[3],
+                "model_responses": json.loads(row[4]) if row[4] else [],
+                "timestamp": row[5]
+            })
+        return {"history": history}
+    finally:
+        conn.close()
+
 @app.post("/api/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest, request_obj: Request):
     """多模型并发对话接口"""
@@ -600,18 +631,23 @@ async def chat(request: ChatRequest, request_obj: Request):
                 error_message="未配置阿里云 API Key",
                 latency_ms=0
             ))
+    # 并发调用多个模型，记录每个模型的响应时间
+    import time as time_module
     for model_name, task in tasks:
+        model_start = time_module.time()
         try:
             content = await task
+            model_latency = int((time_module.time() - model_start) * 1000)
             model_id = keys_map[model_name]["model_id"]
             results.append(ModelResponse(
                 model_name=model_name,
                 model_id=model_id,
                 content=content,
                 success=True,
-                latency_ms=0  # 将在下面计算
+                latency_ms=model_latency
             ))
         except Exception as e:
+            model_latency = int((time_module.time() - model_start) * 1000)
             model_id = keys_map[model_name]["model_id"] if model_name in keys_map else None
             results.append(ModelResponse(
                 model_name=model_name,
@@ -619,7 +655,7 @@ async def chat(request: ChatRequest, request_obj: Request):
                 content="",
                 success=False,
                 error_message=str(e),
-                latency_ms=0
+                latency_ms=model_latency
             ))
     
     total_latency = int((time.time() - start_time) * 1000)

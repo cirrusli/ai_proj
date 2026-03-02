@@ -341,6 +341,79 @@
         let currentUser = null;
         let conversationHistory = [];  // 多轮对话历史
         
+        // 加载历史记录
+        async function loadHistory() {
+            if (!sessionId) return;
+            
+            try {
+                const resp = await fetch(`/api/history?session_id=${sessionId}&limit=50`);
+                const data = await resp.json();
+                
+                if (data.history && data.history.length > 0) {
+                    // 重建对话历史用于上下文
+                    data.history.forEach(round => {
+                        conversationHistory.push({ role: "user", content: round.user_message });
+                        if (round.model_responses) {
+                            round.model_responses.forEach(resp => {
+                                if (resp.success) {
+                                    conversationHistory.push({ role: "assistant", content: resp.content });
+                                }
+                            });
+                        }
+                    });
+                    
+                    // 渲染历史对话
+                    renderHistory(data.history);
+                }
+            } catch (error) {
+                console.error('加载历史记录失败:', error);
+            }
+        }
+        
+        function renderHistory(history) {
+            const responseArea = document.getElementById('responseArea');
+            responseArea.innerHTML = '';
+            
+            history.forEach(round => {
+                const html = renderRound(round);
+                responseArea.innerHTML += html;
+            });
+            
+            // 滚动到底部
+            window.scrollTo(0, document.body.scrollHeight);
+        }
+        
+        function renderRound(round) {
+            const isAdmin = currentUser && currentUser.username === 'cirrus';
+            
+            if (!round.model_responses || round.model_responses.length === 0) {
+                return '';
+            }
+            
+            const html = round.model_responses.map(resp => {
+                const isError = !resp.success || resp.error_message;
+                const content = resp.success ? resp.content : ('❌ ' + resp.error_message);
+                
+                const errorDetail = isAdmin && isError ? `
+                    <button class="show-error-btn" onclick="this.nextElementSibling.style.display='block'">查看详细错误</button>
+                    <div class="error-detail" style="display:none">${resp.error_message || '未知错误'}</div>
+                ` : '';
+                
+                return `
+                    <div class="model-response ${isError ? 'error' : ''}">
+                        <div class="model-name">
+                            <span>${resp.model === 'tencent' ? '腾讯云' : '阿里云'} ${resp.model_id ? `(${resp.model_id})` : ''}</span>
+                            <span class="latency">${resp.latency_ms || 0}ms</span>
+                        </div>
+                        <div class="content">${content}</div>
+                        ${errorDetail}
+                    </div>
+                `;
+            }).join('');
+            
+            return `<div style="margin-bottom: 24px;"><div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 8px;">第 ${round.round} 轮</div>${html}</div>`;
+        }
+        
         // 生成头像
         function generateAvatar(seed, size = 24) {
             const canvas = document.createElement('canvas');
@@ -398,6 +471,11 @@
                 currentUser = data.user;
                 document.getElementById('username').textContent = data.user.username;
                 document.getElementById('userAvatar').src = generateAvatar(data.user.username);
+                
+                // 加载历史记录
+                if (sessionId) {
+                    await loadHistory();
+                }
             } catch (error) {
                 window.location.href = '/login';
             }
@@ -476,7 +554,23 @@
                     conversationHistory = conversationHistory.slice(-20);
                 }
                 
-                renderResponses(data.responses, data.total_latency_ms);
+                // 渲染当前轮次
+                const currentRound = {
+                    round: Math.ceil(conversationHistory.length / 2),
+                    user_message: message,
+                    model_responses: data.responses.map(r => ({
+                        model: r.model_name,
+                        model_id: r.model_id,
+                        content: r.content,
+                        success: r.success,
+                        error_message: r.error_message,
+                        latency_ms: r.latency_ms
+                    }))
+                };
+                const responseArea = document.getElementById('responseArea');
+                responseArea.innerHTML += renderRound(currentRound);
+                window.scrollTo(0, document.body.scrollHeight);
+                
                 document.getElementById('userMessage').value = '';
             } catch (error) {
                 document.getElementById('responseArea').innerHTML = `
