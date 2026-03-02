@@ -3,9 +3,9 @@ AI 模型对比对话窗口 - FastAPI 后端
 """
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Optional, AsyncGenerator
 import asyncio
 import time
 import sqlite3
@@ -555,6 +555,202 @@ async def get_chat_history(session_id: str, limit: int = 20, request: Request = 
         return {"history": history}
     finally:
         conn.close()
+
+async def stream_tencent_response(message: str, api_key: str, model_id: str, history: List[dict] = None):
+    """流式调用腾讯云 API"""
+    import httpx
+    
+    url = "https://api.hunyuan.cloud.tencent.com/v1/chat/completions"
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {api_key}"
+    }
+    
+    messages = []
+    if history and len(history) > 0:
+        for msg in history[-10:]:
+            if msg.get("role") in ["user", "assistant"]:
+                messages.append({"role": msg["role"], "content": msg["content"]})
+    messages.append({"role": "user", "content": message})
+    
+    payload = {
+        "model": model_id,
+        "messages": messages,
+        "stream": True
+    }
+    
+    async with httpx.AsyncClient(timeout=60.0) as client:
+        async with client.stream("POST", url, json=payload, headers=headers) as response:
+            async for line in response.aiter_lines():
+                if line.startswith("data: "):
+                    data = line[6:]
+                    if data == "[DONE]":
+                        break
+                    try:
+                        chunk = json.loads(data)
+                        if "choices" in chunk and len(chunk["choices"]) > 0:
+                            delta = chunk["choices"][0].get("delta", {})
+                            content = delta.get("content", "")
+                            if content:
+                                yield content
+                    except json.JSONDecodeError:
+                        continue
+
+async def stream_aliyun_response(message: str, api_key: str, model_id: str, history: List[dict] = None):
+    """流式调用阿里云 API"""
+    import httpx
+    
+    url = "https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation"
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {api_key}",
+        "X-DashScope-SSE": "enable"
+    }
+    
+    messages = []
+    if history and len(history) > 0:
+        for msg in history[-10:]:
+            if msg.get("role") in ["user", "assistant"]:
+                messages.append({"role": msg["role"], "content": msg["content"]})
+    messages.append({"role": "user", "content": message})
+    
+    payload = {
+        "model": model_id,
+        "input": {"messages": messages},
+        "stream": True
+    }
+    
+    async with httpx.AsyncClient(timeout=60.0) as client:
+        async with client.stream("POST", url, json=payload, headers=headers) as response:
+            async for line in response.aiter_lines():
+                if line.startswith("data:"):
+                    data = line[5:].strip()
+                    if data == "[DONE]":
+                        break
+                    try:
+                        chunk = json.loads(data)
+                        if "output" in chunk and "choices" in chunk["output"]:
+                            content = chunk["output"]["choices"][0].get("message", {}).get("content", "")
+                            if content:
+                                yield content
+                    except json.JSONDecodeError:
+                        continue
+
+@app.post("/api/chat/stream")
+async def chat_stream(request: ChatRequest, request_obj: Request):
+    """流式对话接口（SSE）"""
+    if not hasattr(request_obj.state, 'user'):
+        raise HTTPException(status_code=401, detail="未登录")
+    
+    user_id = request_obj.state.user['id']
+    session_id = request.session_id or str(uuid.uuid4())
+    
+    # 获取 API Keys
+    conn = sqlite3.connect('chat_history.db')
+    try:
+        cursor = conn.cursor()
+        cursor.execute("SELECT provider, api_key, model_id FROM api_keys WHERE user_id = ?", (user_id,))
+        keys_map = {}
+        for row in cursor.fetchall():
+            keys_map[row[0]] = {"api_key": row[1], "model_id": row[2]}
+    finally:
+        conn.close()
+    
+    # 计算轮次
+    conn = sqlite3.connect('chat_history.db')
+    try:
+        cursor = conn.cursor()
+        cursor.execute("SELECT COALESCE(MAX(round), 0) FROM chat_history WHERE session_id = ?", (session_id,))
+        current_round = cursor.fetchone()[0] + 1
+    finally:
+        conn.close()
+    
+    async def generate() -> AsyncGenerator[str, None]:
+        tasks = []
+        model_ids = {}
+        
+        if "tencent" in request.models:
+            tencent_config = keys_map.get("tencent")
+            if tencent_config and tencent_config["api_key"]:
+                tasks.append(("tencent", stream_tencent_response(
+                    request.user_message,
+                    tencent_config["api_key"],
+                    tencent_config["model_id"],
+                    request.history
+                )))
+                model_ids["tencent"] = tencent_config["model_id"]
+        
+        if "aliyun" in request.models:
+            aliyun_config = keys_map.get("aliyun")
+            if aliyun_config and aliyun_config["api_key"]:
+                tasks.append(("aliyun", stream_aliyun_response(
+                    request.user_message,
+                    aliyun_config["api_key"],
+                    aliyun_config["model_id"],
+                    request.history
+                )))
+                model_ids["aliyun"] = aliyun_config["model_id"]
+        
+        # 收集所有响应
+        responses = {name: {"content": "", "success": True, "error_message": None} for name, _ in tasks}
+        
+        # 并发执行流式任务
+        async def collect_stream(name: str, stream):
+            try:
+                async for chunk in stream:
+                    responses[name]["content"] += chunk
+                    # 发送增量数据
+                    yield f"event: {name}\ndata: {json.dumps({'chunk': chunk, 'model_id': model_ids.get(name)}, ensure_ascii=False)}\n\n"
+            except Exception as e:
+                responses[name]["success"] = False
+                responses[name]["error_message"] = str(e)
+                yield f"event: {name}\ndata: {json.dumps({'error': str(e), 'model_id': model_ids.get(name)}, ensure_ascii=False)}\n\n"
+        
+        # 合并所有流
+        import asyncio
+        stream_tasks = [collect_stream(name, stream) for name, stream in tasks]
+        
+        # 使用 asyncio.as_completed 来并发处理
+        for task in asyncio.as_completed(stream_tasks):
+            async for data in await task:
+                yield data
+        
+        # 发送完成信号
+        yield f"event: done\ndata: {json.dumps({'session_id': session_id, 'round': current_round}, ensure_ascii=False)}\n\n"
+        
+        # 保存历史记录
+        conn = sqlite3.connect('chat_history.db')
+        try:
+            cursor = conn.cursor()
+            model_responses_json = json.dumps([
+                {
+                    "model": name,
+                    "model_id": model_ids.get(name),
+                    "content": responses[name]["content"],
+                    "success": responses[name]["success"],
+                    "error_message": responses[name]["error_message"],
+                    "latency_ms": 0
+                }
+                for name, _ in tasks
+            ], ensure_ascii=False)
+            
+            cursor.execute(
+                "INSERT INTO chat_history (session_id, round, user_id, user_message, model_responses) VALUES (?, ?, ?, ?, ?)",
+                (session_id, current_round, user_id, request.user_message, model_responses_json)
+            )
+            conn.commit()
+        finally:
+            conn.close()
+    
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
 
 @app.post("/api/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest, request_obj: Request):
