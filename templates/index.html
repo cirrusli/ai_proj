@@ -178,6 +178,31 @@
             white-space: pre-wrap;
             font-size: 15px;
         }
+        .error-detail {
+            margin-top: 10px;
+            padding: 10px;
+            background: #fff;
+            border: 1px solid #ffcccc;
+            border-radius: 6px;
+            font-size: 12px;
+            font-family: monospace;
+            color: #d70015;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .show-error-btn {
+            margin-top: 8px;
+            padding: 6px 12px;
+            background: #d70015;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .show-error-btn:hover {
+            background: #b00012;
+        }
         .loading {
             text-align: center;
             padding: 48px 24px;
@@ -317,15 +342,29 @@
         }
         
         function renderResponses(responses, totalLatency) {
-            const html = responses.map(resp => `
-                <div class="model-response ${resp.success ? '' : 'error'}">
-                    <div class="model-name">
-                        ${resp.model_name === 'tencent' ? '☁️ 腾讯云' : '🔶 阿里云'}
-                        <span class="latency">${resp.latency_ms}ms</span>
+            const isAdmin = currentUser && currentUser.username === 'cirrus';
+            
+            const html = responses.map(resp => {
+                const isError = !resp.success || resp.error_message;
+                const content = resp.success ? resp.content : ('❌ ' + resp.error_message);
+                
+                // 管理员显示详细错误
+                const errorDetail = isAdmin && isError ? `
+                    <button class="show-error-btn" onclick="this.nextElementSibling.style.display='block'">查看详细错误</button>
+                    <div class="error-detail" style="display:none">${resp.error_message || '未知错误'}</div>
+                ` : '';
+                
+                return `
+                    <div class="model-response ${isError ? 'error' : ''}">
+                        <div class="model-name">
+                            ${resp.model_name === 'tencent' ? '☁️ 腾讯云' : '🔶 阿里云'}
+                            <span class="latency">${resp.latency_ms}ms</span>
+                        </div>
+                        <div class="content">${content}</div>
+                        ${errorDetail}
                     </div>
-                    <div class="content">${resp.success ? resp.content : '❌ ' + resp.error_message}</div>
-                </div>
-            `).join('');
+                `;
+            }).join('');
             
             document.getElementById('responseArea').innerHTML = html;
         }

@@ -120,6 +120,32 @@ messages (id, session_id, user_id, user_message, timestamp)
 responses (id, session_id, user_id, model_name, content, latency_ms, timestamp)
 ```
 
+## 🧪 测试
+
+### 运行测试
+
+```bash
+# 安装测试依赖
+pip3 install -r tests/requirements-test.txt
+
+# 运行所有测试
+pytest
+
+# 运行特定测试类
+pytest tests/test_main.py::TestAuth -v
+
+# 生成覆盖率报告
+pytest --cov=app --cov-report=html
+```
+
+### 测试覆盖
+
+- ✅ 认证系统（登录/注册/限制）
+- ✅ API Key 管理（保存/查询/安全）
+- ✅ 对话功能（权限验证）
+- ✅ 模型列表 API
+- ✅ 安全性（SQL 注入/Cookie）
+
 ## 🛠️ 开发
 
 ### 添加新模型提供商

@@ -125,9 +125,14 @@ class ChatResponse(BaseModel):
     total_latency_ms: int
 
 # API 调用实现
-async def call_tencent_api(message: str, api_key: str, model_id: str) -> str:
+async def call_tencent_api(message: str, api_key: str, model_id: str, user_id: int = None) -> str:
     """调用腾讯云混元 API"""
     import httpx
+    import logging
+    
+    # 配置日志
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger(__name__)
     
     url = "https://hunyuan.tencentcloudapi.com"
     headers = {
@@ -152,23 +157,40 @@ async def call_tencent_api(message: str, api_key: str, model_id: str) -> str:
             response.raise_for_status()
             data = response.json()
             
+            # 记录完整响应（用于调试）
+            logger.info(f"腾讯云响应：{data}")
+            
             # 腾讯云返回格式
-            if "Response" in data and "Choices" in data["Response"]:
-                return data["Response"]["Choices"][0]["Message"]["Content"]
-            elif "Choices" in data:
+            if "Response" in data:
+                resp = data["Response"]
+                if "Error" in resp:
+                    error_msg = resp["Error"].get("Message", "未知错误")
+                    logger.error(f"腾讯云 API 错误：{error_msg}")
+                    raise Exception(f"腾讯云 API 错误：{error_msg}")
+                if "Choices" in resp:
+                    return resp["Choices"][0]["Message"]["Content"]
+            
+            # 备用格式
+            if "Choices" in data:
                 return data["Choices"][0]["Message"]["Content"]
-            else:
-                return "API 响应格式异常"
+            
+            # 未知格式，返回详细信息
+            logger.error(f"未知响应格式：{data}")
+            raise Exception(f"API 响应格式异常：{str(data)[:200]}")
     except httpx.HTTPStatusError as e:
-        # 不暴露详细错误信息
+        logger.error(f"HTTP 错误：{e.response.status_code} - {e.response.text}")
         raise Exception(f"腾讯云 API 调用失败：HTTP {e.response.status_code}")
     except Exception as e:
-        # 隐藏敏感信息
-        raise Exception("腾讯云 API 调用失败")
+        logger.error(f"调用失败：{str(e)}")
+        raise
 
-async def call_aliyun_api(message: str, api_key: str, model_id: str) -> str:
+async def call_aliyun_api(message: str, api_key: str, model_id: str, user_id: int = None) -> str:
     """调用阿里云百炼 API"""
     import httpx
+    import logging
+    
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger(__name__)
     
     # 默认模型
     if not model_id:
@@ -195,15 +217,26 @@ async def call_aliyun_api(message: str, api_key: str, model_id: str) -> str:
             response.raise_for_status()
             data = response.json()
             
+            logger.info(f"阿里云响应：{data}")
+            
             # 阿里云返回格式
             if "output" in data and "choices" in data["output"]:
                 return data["output"]["choices"][0]["message"]["content"]
-            else:
-                return "API 响应格式异常"
+            
+            # 错误处理
+            if "code" in data:
+                error_msg = data.get("message", "未知错误")
+                logger.error(f"阿里云 API 错误：{data['code']} - {error_msg}")
+                raise Exception(f"阿里云 API 错误：{error_msg}")
+            
+            logger.error(f"未知响应格式：{data}")
+            raise Exception(f"API 响应格式异常：{str(data)[:200]}")
     except httpx.HTTPStatusError as e:
+        logger.error(f"HTTP 错误：{e.response.status_code} - {e.response.text}")
         raise Exception(f"阿里云 API 调用失败：HTTP {e.response.status_code}")
     except Exception as e:
-        raise Exception("阿里云 API 调用失败")
+        logger.error(f"调用失败：{str(e)}")
+        raise
 
 @app.get("/")
 async def root():
@@ -257,7 +290,7 @@ async def api_login(request: Request):
             httponly=True,
             secure=False,  # 生产环境改为 True (HTTPS)
             samesite="lax",
-            maxage=86400 * 7  # 7 天有效期
+            max_age=86400 * 7  # 7 天有效期
         )
         return response
     else:
@@ -273,7 +306,7 @@ async def api_login(request: Request):
             httponly=True,
             secure=False,  # 生产环境改为 True (HTTPS)
             samesite="lax",
-            maxage=86400 * 7  # 7 天有效期
+            max_age=86400 * 7  # 7 天有效期
         )
         return response
 
@@ -424,7 +457,8 @@ async def chat(request: ChatRequest, request_obj: Request):
             tasks.append(("tencent", call_tencent_api(
                 request.user_message, 
                 tencent_config["api_key"], 
-                tencent_config["model_id"]
+                tencent_config["model_id"],
+                user_id
             )))
         else:
             results.append(ModelResponse(
@@ -441,7 +475,8 @@ async def chat(request: ChatRequest, request_obj: Request):
             tasks.append(("aliyun", call_aliyun_api(
                 request.user_message, 
                 aliyun_config["api_key"], 
-                aliyun_config["model_id"]
+                aliyun_config["model_id"],
+                user_id
             )))
         else:
             results.append(ModelResponse(

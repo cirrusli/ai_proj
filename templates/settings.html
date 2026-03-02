@@ -264,6 +264,12 @@
             
             <div id="successMsg" class="success-msg">✓ 保存成功</div>
             
+            <!-- 已配置状态 -->
+            <div id="configStatus" style="margin-bottom: 32px; display: none;">
+                <h3 style="font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 16px; text-transform: uppercase; letter-spacing: 0.08em;">当前配置状态</h3>
+                <div id="statusList" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;"></div>
+            </div>
+            
             <!-- 腾讯云 -->
             <div class="provider-section">
                 <div class="provider-header">
@@ -386,6 +392,25 @@
                 const data = await resp.json();
                 
                 if (data.keys && data.keys.length > 0) {
+                    // 显示顶部状态
+                    document.getElementById('configStatus').style.display = 'block';
+                    const statusHtml = data.keys.map(key => `
+                        <div style="padding: 16px; background: white; border-radius: 12px; border: 1px solid var(--divider-color);">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                <span class="provider-badge provider-${key.provider}" style="font-size: 14px; padding: 6px 14px;">
+                                    ${key.provider === 'tencent' ? '☁️ 腾讯云' : '🔶 阿里云'}
+                                </span>
+                                <span style="font-size: 12px; color: #16a34a; font-weight: 500;">✓ 已配置</span>
+                            </div>
+                            <div style="font-size: 13px; color: var(--text-secondary);">
+                                <div style="margin-bottom: 4px;">模型：<strong style="color: var(--text-primary);">${key.model_id || '默认'}</strong></div>
+                                <div>Key：••••••••••••</div>
+                            </div>
+                        </div>
+                    `).join('');
+                    document.getElementById('statusList').innerHTML = statusHtml;
+                    
+                    // 底部列表保持
                     document.getElementById('savedKeys').style.display = 'block';
                     const html = data.keys.map(key => `
                         <div class="key-item">
@@ -401,9 +426,6 @@
                         </div>
                     `).join('');
                     document.getElementById('keysList').innerHTML = html;
-                    
-                    // 注意：不再从服务器获取完整 API Key
-                    // 用户需要重新输入 API Key 来更新配置
                 }
             } catch (error) {
                 console.error('加载 Keys 失败:', error);
