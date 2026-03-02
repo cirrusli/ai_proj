@@ -392,19 +392,26 @@
             }
         }
         
+        let currentModels = {};
+        
         async function loadKeys() {
             try {
                 const resp = await fetch('/api/keys');
                 const data = await resp.json();
                 
                 if (data.keys && data.keys.length > 0) {
+                    // 保存当前模型配置
+                    data.keys.forEach(key => {
+                        currentModels[key.provider] = key.model_id;
+                    });
+                    
                     // 显示顶部状态
                     document.getElementById('configStatus').style.display = 'block';
                     const statusHtml = data.keys.map(key => `
                         <div style="padding: 16px; background: white; border-radius: 12px; border: 1px solid var(--divider-color);">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                                 <span class="provider-badge provider-${key.provider}" style="font-size: 14px; padding: 6px 14px;">
-                                    ${key.provider === 'tencent' ? '☁️ 腾讯云' : '🔶 阿里云'}
+                                    ${key.provider === 'tencent' ? '腾讯云' : '阿里云'}
                                 </span>
                                 <div style="display: flex; gap: 8px; align-items: center;">
                                     <span style="font-size: 12px; color: #16a34a; font-weight: 500;">✓ 已配置</span>
@@ -415,7 +422,7 @@
                                 <div style="margin-bottom: 8px;">
                                     <div style="margin-bottom: 4px;">当前模型：<strong style="color: var(--text-primary);">${key.model_id || '默认'}</strong></div>
                                     <select onchange="switchModel('${key.provider}', this.value)" style="font-size: 12px; padding: 6px 10px; border: 1px solid var(--border-color); border-radius: 6px; width: 100%;">
-                                        ${getProviderModels(key.provider)}
+                                        ${getProviderModels(key.provider, key.model_id)}
                                     </select>
                                 </div>
                                 <div>Key：••••••••••••</div>
@@ -432,12 +439,10 @@
             }
         }
         
-        function getProviderModels(provider) {
+        function getProviderModels(provider, currentModelId) {
             const models = modelsData[provider] || [];
-            return models.map(m => `<option value="${m.id}" ${m.id === currentModels[provider] ? 'selected' : ''}>${m.name}</option>`).join('');
+            return models.map(m => `<option value="${m.id}" ${m.id === currentModelId ? 'selected' : ''}>${m.name}</option>`).join('');
         }
-        
-        let currentModels = {};
         
         async function switchModel(provider, modelId) {
             try {

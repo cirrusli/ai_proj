@@ -506,7 +506,7 @@
                 return `
                     <div class="model-response ${isError ? 'error' : ''}">
                         <div class="model-name">
-                            ${resp.model_name === 'tencent' ? '☁️ 腾讯云' : '🔶 阿里云'}
+                            <span>${resp.model_name === 'tencent' ? '腾讯云' : '阿里云'} ${resp.model_id ? `(${resp.model_id})` : ''}</span>
                             <span class="latency">${resp.latency_ms}ms</span>
                         </div>
                         <div class="content">${content}</div>

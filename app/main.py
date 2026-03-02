@@ -125,6 +125,7 @@ class ChatRequest(BaseModel):
 
 class ModelResponse(BaseModel):
     model_name: str
+    model_id: Optional[str] = None
     content: str
     success: bool
     error_message: Optional[str] = None
@@ -433,31 +434,31 @@ async def get_api_keys(request: Request):
 # 阿里云：https://help.aliyun.com/zh/model-studio/models
 AVAILABLE_MODELS = {
     "tencent": [
-        {"id": "hunyuan-lite", "name": "混元 Lite", "desc": "轻量级，速度快"},
-        {"id": "hunyuan-standard", "name": "混元标准", "desc": "平衡性能与成本"},
-        {"id": "hunyuan-standard-256k", "name": "混元标准 256K", "desc": "支持 256K 超长上下文"},
-        {"id": "hunyuan-pro", "name": "混元 Pro", "desc": "最强性能"},
-        {"id": "hunyuan-turbo", "name": "混元 Turbo", "desc": "高性能，适合复杂任务"},
-        {"id": "hunyuan-t1-latest", "name": "混元 T1 最新", "desc": "最新一代模型，性能最优"},
-        {"id": "hunyuan-t1", "name": "混元 T1", "desc": "深度推理模型"},
-        {"id": "hunyuan-large-role-latest", "name": "混元角色扮演", "desc": "AI 数字分身、情感陪聊"},
-        {"id": "hunyuan-translation", "name": "混元翻译", "desc": "33 种语言互译"},
+        {"id": "hunyuan-lite", "name": "hunyuan-lite", "desc": "轻量级，速度快"},
+        {"id": "hunyuan-standard", "name": "hunyuan-standard", "desc": "平衡性能与成本"},
+        {"id": "hunyuan-standard-256k", "name": "hunyuan-standard-256k", "desc": "支持 256K 超长上下文"},
+        {"id": "hunyuan-pro", "name": "hunyuan-pro", "desc": "最强性能"},
+        {"id": "hunyuan-turbo", "name": "hunyuan-turbo", "desc": "高性能，适合复杂任务"},
+        {"id": "hunyuan-t1-latest", "name": "hunyuan-t1-latest", "desc": "最新一代模型，性能最优"},
+        {"id": "hunyuan-t1", "name": "hunyuan-t1", "desc": "深度推理模型"},
+        {"id": "hunyuan-large-role-latest", "name": "hunyuan-large-role-latest", "desc": "AI 数字分身、情感陪聊"},
+        {"id": "hunyuan-translation", "name": "hunyuan-translation", "desc": "33 种语言互译"},
     ],
     "aliyun": [
         # 旗舰模型
-        {"id": "qwen-max", "name": "Qwen Max", "desc": "最强性能，适合复杂任务"},
-        {"id": "qwen-plus", "name": "Qwen Plus", "desc": "效果、速度、成本均衡"},
-        {"id": "qwen-flash", "name": "Qwen Flash", "desc": "速度快，成本低"},
-        {"id": "qwen-coder", "name": "Qwen Coder", "desc": "代码专用模型"},
+        {"id": "qwen-max", "name": "qwen-max", "desc": "最强性能，适合复杂任务"},
+        {"id": "qwen-plus", "name": "qwen-plus", "desc": "效果、速度、成本均衡"},
+        {"id": "qwen-flash", "name": "qwen-flash", "desc": "速度快，成本低"},
+        {"id": "qwen-coder", "name": "qwen-coder", "desc": "代码专用模型"},
         # 开源版本
-        {"id": "qwen3.5", "name": "Qwen 3.5", "desc": "最新开源版本"},
-        {"id": "qwen3", "name": "Qwen 3", "desc": "开源版本"},
-        {"id": "qwen2.5", "name": "Qwen 2.5", "desc": "经典开源版本"},
+        {"id": "qwen3.5", "name": "qwen3.5", "desc": "最新开源版本"},
+        {"id": "qwen3", "name": "qwen3", "desc": "开源版本"},
+        {"id": "qwen2.5", "name": "qwen2.5", "desc": "经典开源版本"},
         # 视觉模型
-        {"id": "qwen-vl-max", "name": "Qwen VL Max", "desc": "视觉理解（最强）"},
-        {"id": "qwen-vl-plus", "name": "Qwen VL Plus", "desc": "视觉理解（平衡）"},
+        {"id": "qwen-vl-max", "name": "qwen-vl-max", "desc": "视觉理解（最强）"},
+        {"id": "qwen-vl-plus", "name": "qwen-vl-plus", "desc": "视觉理解（平衡）"},
         # 语音模型
-        {"id": "qwen-audio-turbo", "name": "Qwen Audio Turbo", "desc": "语音理解"},
+        {"id": "qwen-audio-turbo", "name": "qwen-audio-turbo", "desc": "语音理解"},
     ]
 }
 
@@ -615,15 +616,19 @@ async def chat(request: ChatRequest, request_obj: Request):
     for model_name, task in tasks:
         try:
             content = await task
+            model_id = keys_map[model_name]["model_id"]
             results.append(ModelResponse(
                 model_name=model_name,
+                model_id=model_id,
                 content=content,
                 success=True,
                 latency_ms=0  # 将在下面计算
             ))
         except Exception as e:
+            model_id = keys_map[model_name]["model_id"] if model_name in keys_map else None
             results.append(ModelResponse(
                 model_name=model_name,
+                model_id=model_id,
                 content="",
                 success=False,
                 error_message=str(e),
