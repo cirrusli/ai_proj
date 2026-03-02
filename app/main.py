@@ -20,13 +20,13 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 def init_db():
     conn = sqlite3.connect('chat_history.db')
     cursor = conn.cursor()
-    # 用户表
+    # 用户表（时区：Asia/Shanghai）
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT UNIQUE,
             role TEXT DEFAULT 'user',
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            created_at DATETIME DEFAULT (datetime('now', 'localtime'))
         )
     ''')
     # API Key 配置表（添加模型选择）
@@ -37,7 +37,7 @@ def init_db():
             provider TEXT,
             api_key TEXT,
             model_id TEXT,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            created_at DATETIME DEFAULT (datetime('now', 'localtime')),
             FOREIGN KEY (user_id) REFERENCES users(id)
         )
     ''')
@@ -48,7 +48,7 @@ def init_db():
             session_id TEXT,
             user_id INTEGER,
             user_message TEXT,
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+            timestamp DATETIME DEFAULT (datetime('now', 'localtime')),
             FOREIGN KEY (user_id) REFERENCES users(id)
         )
     ''')
@@ -61,7 +61,7 @@ def init_db():
             model_name TEXT,
             content TEXT,
             latency_ms INTEGER,
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+            timestamp DATETIME DEFAULT (datetime('now', 'localtime')),
             FOREIGN KEY (user_id) REFERENCES users(id)
         )
     ''')
