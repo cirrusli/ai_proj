@@ -774,29 +774,23 @@ async def chat_stream(request: ChatRequest, request_obj: Request):
                 model_ids["aliyun"] = aliyun_config["model_id"]
         
         # 收集所有响应
-        responses = {name: {"content": "", "success": True, "error_message": None} for name, _ in tasks}
+        import time as time_module
+        responses = {name: {"content": "", "success": True, "error_message": None, "latency_ms": 0} for name, _ in tasks}
+        model_start_times = {name: time_module.time() for name, _ in tasks}
         
-        # 并发执行流式任务
-        async def collect_stream(name: str, stream):
-            try:
-                async for chunk in stream:
-                    responses[name]["content"] += chunk
-                    # 发送增量数据
-                    yield f"event: {name}\ndata: {json.dumps({'chunk': chunk, 'model_id': model_ids.get(name)}, ensure_ascii=False)}\n\n"
-            except Exception as e:
-                responses[name]["success"] = False
-                responses[name]["error_message"] = str(e)
-                yield f"event: {name}\ndata: {json.dumps({'error': str(e), 'model_id': model_ids.get(name)}, ensure_ascii=False)}\n\n"
-        
-        # 简单处理：顺序执行流式任务（先腾讯后阿里）
+        # 顺序执行但实时输出（简化方案，避免并发复杂性）
         for name, stream in tasks:
+            start = model_start_times[name]
             try:
                 async for chunk in stream:
                     responses[name]["content"] += chunk
+                    # 实时发送，不缓冲
                     yield f"event: {name}\ndata: {json.dumps({'chunk': chunk, 'model_id': model_ids.get(name)}, ensure_ascii=False)}\n\n"
+                responses[name]["latency_ms"] = int((time_module.time() - start) * 1000)
             except Exception as e:
                 responses[name]["success"] = False
                 responses[name]["error_message"] = str(e)
+                responses[name]["latency_ms"] = int((time_module.time() - start) * 1000)
                 yield f"event: {name}\ndata: {json.dumps({'error': str(e), 'model_id': model_ids.get(name)}, ensure_ascii=False)}\n\n"
         
         # 发送完成信号
@@ -813,7 +807,7 @@ async def chat_stream(request: ChatRequest, request_obj: Request):
                     "content": responses[name]["content"],
                     "success": responses[name]["success"],
                     "error_message": responses[name]["error_message"],
-                    "latency_ms": 0
+                    "latency_ms": responses[name]["latency_ms"]
                 }
                 for name, _ in tasks
             ], ensure_ascii=False)
