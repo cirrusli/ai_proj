@@ -380,12 +380,16 @@
                         <h3 style="font-size: 14px; font-weight: 600; color: var(--text-secondary); margin-bottom: 12px;">对话历史</h3>
                         <div style="display: flex; flex-wrap: wrap; gap: 8px;">
                             ${sessions.map(s => `
-                                <button onclick="switchSession('${s.session_id}')" 
-                                    style="padding: 8px 16px; background: ${s.session_id === sessionId ? 'var(--accent-color)' : '#f5f5f7'}; 
-                                    color: ${s.session_id === sessionId ? 'white' : 'var(--text-primary)'}; 
-                                    border: none; border-radius: 980px; font-size: 13px; cursor: pointer;">
-                                    💬 第${s.round_count}轮 ${s.session_id === sessionId ? '(当前)' : ''}
-                                </button>
+                                <div style="display: flex; align-items: center; gap: 4px; padding: 6px 12px; background: ${s.session_id === sessionId ? 'var(--accent-color)' : '#f5f5f7'}; border-radius: 980px;">
+                                    <button onclick="switchSession('${s.session_id}')" 
+                                        style="background: none; border: none; color: ${s.session_id === sessionId ? 'white' : 'var(--text-primary)'}; font-size: 13px; cursor: pointer; padding: 2px 4px;">
+                                        💬 ${s.title || `第${s.round_count}轮`}
+                                    </button>
+                                    <button onclick="editSessionTitle('${s.session_id}', '${s.title || ''}')" 
+                                        style="background: none; border: none; color: ${s.session_id === sessionId ? 'rgba(255,255,255,0.8)' : 'var(--text-secondary)'}; font-size: 12px; cursor: pointer; padding: 2px;">
+                                        ✏️
+                                    </button>
+                                </div>
                             `).join('')}
                         </div>
                     </div>
@@ -411,6 +415,30 @@
             conversationHistory = [];
             document.getElementById('responseArea').innerHTML = '';
             loadSessions();
+        }
+        
+        async function editSessionTitle(sessionId, currentTitle) {
+            const newTitle = prompt('输入对话标题（留空使用默认）：', currentTitle);
+            if (newTitle === null) return;  // 取消
+            
+            try {
+                const resp = await fetch(`/api/sessions/${sessionId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ title: newTitle || null })
+                });
+                
+                if (resp.ok) {
+                    // 更新本地会话列表
+                    const session = sessions.find(s => s.session_id === sessionId);
+                    if (session) {
+                        session.title = newTitle || null;
+                    }
+                    loadSessions();
+                }
+            } catch (error) {
+                alert('修改失败：' + error.message);
+            }
         }
         
         function uuidv4() {
@@ -473,7 +501,7 @@
             const html = round.model_responses.map((resp, index) => {
                 const isError = !resp.success || resp.error_message;
                 const content = resp.success ? marked.parse(resp.content) : ('❌ ' + resp.error_message);
-                const shouldFold = resp.content && resp.content.length > 20;
+                const shouldFold = resp.content && resp.content.length > 100;  // 超过 100 字折叠
                 const uniqueId = `content-${round.round}-${index}`;
                 
                 const errorDetail = isAdmin && isError ? `
@@ -482,14 +510,14 @@
                 ` : '';
                 
                 return `
-                    <div class="model-response ${isError ? 'error' : ''}" style="position: relative;">
+                    <div class="model-response ${isError ? 'error' : ''}" style="position: relative; margin-bottom: 16px;">
                         <div class="model-name">
                             <span>${resp.model === 'tencent' ? '腾讯云' : '阿里云'} ${resp.model_id ? `(${resp.model_id})` : ''}</span>
                             <span class="latency">${resp.latency_ms || 0}ms</span>
                         </div>
-                        <div class="content ${shouldFold ? 'collapsed' : ''}" id="${uniqueId}" style="${shouldFold ? 'max-height: 3em; overflow: hidden; position: relative;' : ''}">
+                        <div class="content ${shouldFold ? 'collapsed' : ''}" id="${uniqueId}" style="${shouldFold ? 'max-height: 6em; overflow: hidden; position: relative;' : ''}">
                             ${content}
-                            ${shouldFold ? `<div style="position: absolute; bottom: 0; left: 0; right: 0; height: 2em; background: linear-gradient(transparent, white);"></div>` : ''}
+                            ${shouldFold ? `<div style="position: absolute; bottom: 0; left: 0; right: 0; height: 3em; background: linear-gradient(transparent, white);"></div>` : ''}
                         </div>
                         ${shouldFold ? `<button onclick="toggleContent('${uniqueId}', this)" style="position: absolute; bottom: 8px; right: 8px; padding: 4px 12px; background: var(--accent-color); color: white; border: none; border-radius: 6px; font-size: 12px; cursor: pointer; z-index: 10;">展开</button>` : ''}
                         ${errorDetail}
@@ -521,7 +549,7 @@
             } else {
                 // 收起
                 content.classList.add('collapsed');
-                content.style.maxHeight = '3em';
+                content.style.maxHeight = '6em';
                 content.style.overflow = 'hidden';
                 btn.textContent = '展开';
             }

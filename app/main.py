@@ -535,10 +535,11 @@ async def get_sessions(request: Request):
     try:
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT session_id, MIN(timestamp) as created_at, COUNT(*) as round_count
-            FROM chat_history 
-            WHERE user_id = ?
-            GROUP BY session_id
+            SELECT h.session_id, MIN(h.timestamp) as created_at, COUNT(*) as round_count, t.title
+            FROM chat_history h
+            LEFT JOIN session_titles t ON h.session_id = t.session_id AND t.user_id = h.user_id
+            WHERE h.user_id = ?
+            GROUP BY h.session_id
             ORDER BY created_at DESC
         """, (request.state.user['id'],))
         
@@ -548,7 +549,7 @@ async def get_sessions(request: Request):
                 "session_id": row[0],
                 "created_at": row[1],
                 "round_count": row[2],
-                "title": None  # 后续支持自定义标题
+                "title": row[3]  # 自定义标题（如果有）
             })
         return {"sessions": sessions}
     finally:
@@ -560,12 +561,38 @@ async def update_session_title(session_id: str, data: dict, request: Request):
     if not request or not hasattr(request.state, 'user'):
         raise HTTPException(status_code=401, detail="未登录")
     
-    title = data.get("title", "")
-    if not title:
-        raise HTTPException(status_code=400, detail="标题不能为空")
+    user_id = request.state.user['id']
+    title = data.get("title")
     
-    # 可以创建一个 session_titles 表来存储自定义标题
-    # 这里简化处理，返回成功即可
+    conn = sqlite3.connect('chat_history.db')
+    try:
+        cursor = conn.cursor()
+        # 检查是否有 session_titles 表，没有则创建
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS session_titles (
+                session_id TEXT PRIMARY KEY,
+                user_id INTEGER,
+                title TEXT,
+                created_at DATETIME DEFAULT (datetime('now', 'localtime')),
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            )
+        ''')
+        
+        if title:
+            # 插入或更新标题
+            cursor.execute("""
+                INSERT OR REPLACE INTO session_titles (session_id, user_id, title) 
+                VALUES (?, ?, ?)
+            """, (session_id, user_id, title))
+        else:
+            # 删除自定义标题（使用默认）
+            cursor.execute("DELETE FROM session_titles WHERE session_id = ? AND user_id = ?", 
+                           (session_id, user_id))
+        
+        conn.commit()
+    finally:
+        conn.close()
+    
     return {"success": True, "title": title}
 
 @app.get("/api/history")
