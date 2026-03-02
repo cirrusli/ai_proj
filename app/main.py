@@ -136,7 +136,7 @@ class ChatResponse(BaseModel):
 
 # API 调用实现
 async def call_tencent_api(message: str, api_key: str, model_id: str, user_id: int = None) -> str:
-    """调用腾讯云混元 API"""
+    """调用腾讯云混元 API（OpenAI 兼容接口）"""
     import httpx
     import logging
     
@@ -144,22 +144,22 @@ async def call_tencent_api(message: str, api_key: str, model_id: str, user_id: i
     logging.basicConfig(level=logging.INFO)
     logger = logging.getLogger(__name__)
     
-    url = "https://hunyuan.tencentcloudapi.com"
+    # OpenAI 兼容接口地址
+    url = "https://api.hunyuan.cloud.tencent.com/v1/chat/completions"
     headers = {
         "Content-Type": "application/json",
-        "Authorization": f"Bearer {api_key}",
-        "X-TC-Version": "2017-03-12",
-        "X-TC-Action": "ChatCompletions"
+        "Authorization": f"Bearer {api_key}"
     }
     
     # 默认模型
     if not model_id:
         model_id = "hunyuan-lite"
     
+    # OpenAI 兼容格式
     payload = {
-        "Model": model_id,
-        "Messages": [
-            {"Role": "user", "Content": message}
+        "model": model_id,
+        "messages": [
+            {"role": "user", "content": message}
         ]
     }
     
@@ -172,19 +172,15 @@ async def call_tencent_api(message: str, api_key: str, model_id: str, user_id: i
             # 记录完整响应（用于调试）
             logger.info(f"腾讯云响应：{data}")
             
-            # 腾讯云返回格式
-            if "Response" in data:
-                resp = data["Response"]
-                if "Error" in resp:
-                    error_msg = resp["Error"].get("Message", "未知错误")
-                    logger.error(f"腾讯云 API 错误：{error_msg}")
-                    raise Exception(f"腾讯云 API 错误：{error_msg}")
-                if "Choices" in resp:
-                    return resp["Choices"][0]["Message"]["Content"]
+            # OpenAI 兼容返回格式
+            if "choices" in data and len(data["choices"]) > 0:
+                return data["choices"][0]["message"]["content"]
             
-            # 备用格式
-            if "Choices" in data:
-                return data["Choices"][0]["Message"]["Content"]
+            # 错误处理
+            if "error" in data:
+                error_msg = data["error"].get("message", "未知错误")
+                logger.error(f"腾讯云 API 错误：{error_msg}")
+                raise Exception(f"腾讯云 API 错误：{error_msg}")
             
             # 未知格式，返回详细信息
             logger.error(f"未知响应格式：{data}")
