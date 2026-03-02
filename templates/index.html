@@ -328,14 +328,18 @@
     </header>
 
     <main class="main">
+        <!-- 会话列表 -->
+        <div id="sessionList" style="margin-bottom: 24px;"></div>
+        
         <section class="chat-section">
             <div class="models-selector">
                 <label class="model-checkbox">
-                    <input type="checkbox" value="tencent" checked> ☁️ 腾讯云
+                    <input type="checkbox" value="tencent" checked> 腾讯云
                 </label>
                 <label class="model-checkbox">
-                    <input type="checkbox" value="aliyun" checked> 🔶 阿里云
+                    <input type="checkbox" value="aliyun" checked> 阿里云
                 </label>
+                <button onclick="newSession()" style="margin-left: auto; padding: 6px 14px; background: var(--accent-color); color: white; border: none; border-radius: 980px; font-size: 13px; cursor: pointer;">+ 新对话</button>
             </div>
             
             <div class="input-area">
@@ -355,6 +359,66 @@
         let sessionId = localStorage.getItem('sessionId') || null;
         let currentUser = null;
         let conversationHistory = [];  // 多轮对话历史
+        let sessions = [];  // 会话列表
+        
+        // 加载会话列表
+        async function loadSessions() {
+            try {
+                const resp = await fetch('/api/sessions');
+                const data = await resp.json();
+                sessions = data.sessions || [];
+                
+                const sessionList = document.getElementById('sessionList');
+                if (sessions.length === 0) {
+                    sessionList.innerHTML = '';
+                    return;
+                }
+                
+                const html = `
+                    <div style="margin-bottom: 16px;">
+                        <h3 style="font-size: 14px; font-weight: 600; color: var(--text-secondary); margin-bottom: 12px;">对话历史</h3>
+                        <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                            ${sessions.map(s => `
+                                <button onclick="switchSession('${s.session_id}')" 
+                                    style="padding: 8px 16px; background: ${s.session_id === sessionId ? 'var(--accent-color)' : '#f5f5f7'}; 
+                                    color: ${s.session_id === sessionId ? 'white' : 'var(--text-primary)'}; 
+                                    border: none; border-radius: 980px; font-size: 13px; cursor: pointer;">
+                                    💬 第${s.round_count}轮 ${s.session_id === sessionId ? '(当前)' : ''}
+                                </button>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+                sessionList.innerHTML = html;
+            } catch (error) {
+                console.error('加载会话列表失败:', error);
+            }
+        }
+        
+        function switchSession(newSessionId) {
+            sessionId = newSessionId;
+            localStorage.setItem('sessionId', sessionId);
+            conversationHistory = [];
+            document.getElementById('responseArea').innerHTML = '';
+            loadHistory();
+            loadSessions();
+        }
+        
+        function newSession() {
+            sessionId = uuidv4();
+            localStorage.setItem('sessionId', sessionId);
+            conversationHistory = [];
+            document.getElementById('responseArea').innerHTML = '';
+            loadSessions();
+        }
+        
+        function uuidv4() {
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                const r = Math.random() * 16 | 0;
+                const v = c === 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        }
         
         // 加载历史记录
         async function loadHistory() {
@@ -426,7 +490,15 @@
                 `;
             }).join('');
             
-            return `<div style="margin-bottom: 24px;"><div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 8px;">第 ${round.round} 轮</div>${html}</div>`;
+            return `
+                <div style="margin-bottom: 24px;">
+                    <div style="padding: 12px 16px; background: #f5f5f7; border-radius: 12px; margin-bottom: 12px;">
+                        <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">第 ${round.round} 轮 · 提问</div>
+                        <div style="font-size: 15px; color: var(--text-primary); line-height: 1.6;">${round.user_message}</div>
+                    </div>
+                    ${html}
+                </div>
+            `;
         }
         
         // 生成头像
@@ -486,6 +558,9 @@
                 currentUser = data.user;
                 document.getElementById('username').textContent = data.user.username;
                 document.getElementById('userAvatar').src = generateAvatar(data.user.username);
+                
+                // 加载会话列表
+                await loadSessions();
                 
                 // 加载历史记录
                 if (sessionId) {

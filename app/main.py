@@ -525,8 +525,51 @@ async def delete_api_key(provider: str, request: Request):
     
     return {"success": True}
 
+@app.get("/api/sessions")
+async def get_sessions(request: Request):
+    """获取用户的会话列表"""
+    if not request or not hasattr(request.state, 'user'):
+        raise HTTPException(status_code=401, detail="未登录")
+    
+    conn = sqlite3.connect('chat_history.db')
+    try:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT session_id, MIN(timestamp) as created_at, COUNT(*) as round_count
+            FROM chat_history 
+            WHERE user_id = ?
+            GROUP BY session_id
+            ORDER BY created_at DESC
+        """, (request.state.user['id'],))
+        
+        sessions = []
+        for row in cursor.fetchall():
+            sessions.append({
+                "session_id": row[0],
+                "created_at": row[1],
+                "round_count": row[2],
+                "title": None  # 后续支持自定义标题
+            })
+        return {"sessions": sessions}
+    finally:
+        conn.close()
+
+@app.put("/api/sessions/{session_id}")
+async def update_session_title(session_id: str, data: dict, request: Request):
+    """更新会话标题"""
+    if not request or not hasattr(request.state, 'user'):
+        raise HTTPException(status_code=401, detail="未登录")
+    
+    title = data.get("title", "")
+    if not title:
+        raise HTTPException(status_code=400, detail="标题不能为空")
+    
+    # 可以创建一个 session_titles 表来存储自定义标题
+    # 这里简化处理，返回成功即可
+    return {"success": True, "title": title}
+
 @app.get("/api/history")
-async def get_chat_history(session_id: str, limit: int = 20, request: Request = None):
+async def get_chat_history(session_id: str, limit: int = 50, request: Request = None):
     """获取对话历史记录"""
     if not request or not hasattr(request.state, 'user'):
         raise HTTPException(status_code=401, detail="未登录")
