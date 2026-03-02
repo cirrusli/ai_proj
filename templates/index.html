@@ -45,28 +45,76 @@
             font-weight: 600;
             color: var(--text-primary);
         }
-        .user-info {
+        .user-menu {
+            position: relative;
+        }
+        .user-button {
             display: flex;
             align-items: center;
-            gap: 12px;
-            font-size: 14px;
-            color: var(--text-secondary);
-        }
-        .nav-links {
-            display: flex;
             gap: 8px;
-        }
-        .nav-links a {
-            color: var(--accent-color);
-            text-decoration: none;
-            padding: 8px 16px;
-            border-radius: 980px;
-            font-size: 12px;
-            font-weight: 400;
-            transition: background 0.2s;
-        }
-        .nav-links a:hover {
+            padding: 4px;
             background: #f5f5f7;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: background 0.2s;
+            border: none;
+        }
+        .user-button:hover {
+            background: #e8e8ed;
+        }
+        .user-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+        }
+        .user-button:hover {
+            background: #e8e8ed;
+        }
+        .user-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: block;
+        }
+        .dropdown {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+            border: 1px solid var(--divider-color);
+            min-width: 180px;
+            padding: 8px;
+            display: none;
+            z-index: 1000;
+        }
+        .dropdown.show {
+            display: block;
+        }
+        .dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            color: var(--text-primary);
+            text-decoration: none;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: background 0.2s;
+            cursor: pointer;
+            border: none;
+            background: none;
+            width: 100%;
+            text-align: left;
+        }
+        .dropdown-item:hover {
+            background: #f5f5f7;
+        }
+        .dropdown-divider {
+            height: 1px;
+            background: var(--divider-color);
+            margin: 8px 0;
         }
         .main {
             max-width: 980px;
@@ -226,14 +274,26 @@
     <header class="header">
         <div class="header-content">
             <h1>AI 模型对比</h1>
-            <div style="display: flex; align-items: center; gap: 16px;">
-                <div class="user-info" style="cursor: pointer;" onclick="window.location.href='/profile'">
-                    <span>👤 <span id="username">加载中...</span></span>
+            <div class="user-menu">
+                <button class="user-button" onclick="toggleDropdown()" title="用户菜单">
+                    <img id="userAvatar" class="user-avatar" alt="头像">
+                </button>
+                <div id="userDropdown" class="dropdown">
+                    <div style="padding: 12px 14px; border-bottom: 1px solid var(--divider-color);">
+                        <div style="font-weight: 600; font-size: 14px;" id="username">加载中...</div>
+                        <div style="font-size: 12px; color: var(--text-secondary);" id="userRole">用户</div>
+                    </div>
+                    <a href="/profile" class="dropdown-item">
+                        <span>👤</span> 个人主页
+                    </a>
+                    <a href="/settings" class="dropdown-item">
+                        <span>⚙️</span> 设置
+                    </a>
+                    <div class="dropdown-divider"></div>
+                    <button onclick="logout()" class="dropdown-item">
+                        <span>🚪</span> 退出
+                    </button>
                 </div>
-                <nav class="nav-links">
-                    <a href="/settings">设置</a>
-                    <a href="#" onclick="logout()">退出</a>
-                </nav>
             </div>
         </div>
     </header>
@@ -262,6 +322,52 @@
         let sessionId = localStorage.getItem('sessionId') || null;
         let currentUser = null;
         
+        // 生成头像
+        function generateAvatar(seed, size = 24) {
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+            
+            let hash = 0;
+            for (let i = 0; i < seed.length; i++) {
+                hash = seed.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            const hue = hash % 360;
+            const color = `hsl(${hue}, 60%, 50%)`;
+            const bgColor = `hsl(${hue}, 60%, 95%)`;
+            
+            ctx.fillStyle = bgColor;
+            ctx.fillRect(0, 0, size, size);
+            
+            const blockSize = size / 8;
+            ctx.fillStyle = color;
+            
+            for (let i = 0; i < 8; i++) {
+                for (let j = 0; j < 8; j++) {
+                    if ((hash >> (i * 8 + j)) & 1) {
+                        ctx.fillRect(i * blockSize, j * blockSize, blockSize, blockSize);
+                        ctx.fillRect((7 - i) * blockSize, j * blockSize, blockSize, blockSize);
+                    }
+                }
+            }
+            
+            return canvas.toDataURL();
+        }
+        
+        function toggleDropdown() {
+            document.getElementById('userDropdown').classList.toggle('show');
+        }
+        
+        // 点击外部关闭下拉框
+        document.addEventListener('click', function(event) {
+            const dropdown = document.getElementById('userDropdown');
+            const button = event.target.closest('.user-button');
+            if (!button && dropdown.classList.contains('show')) {
+                dropdown.classList.remove('show');
+            }
+        });
+        
         async function init() {
             try {
                 const resp = await fetch('/api/me');
@@ -272,6 +378,7 @@
                 }
                 currentUser = data.user;
                 document.getElementById('username').textContent = data.user.username;
+                document.getElementById('userAvatar').src = generateAvatar(data.user.username);
             } catch (error) {
                 window.location.href = '/login';
             }
