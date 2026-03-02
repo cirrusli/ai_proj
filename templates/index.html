@@ -5,6 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI 模型对比</title>
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        .content h1, .content h2, .content h3 { margin-top: 16px; margin-bottom: 8px; font-weight: 600; }
+        .content p { margin-bottom: 12px; }
+        .content code { background: #f5f5f7; padding: 2px 6px; border-radius: 4px; font-size: 0.9em; }
+        .content pre { background: #f5f5f7; padding: 12px; border-radius: 8px; overflow-x: auto; margin: 12px 0; }
+        .content pre code { background: none; padding: 0; }
+        .content ul, .content ol { margin-left: 20px; margin-bottom: 12px; }
+        .content blockquote { border-left: 3px solid var(--border-color); padding-left: 12px; margin: 12px 0; color: var(--text-secondary); }
+        .content a { color: var(--accent-color); text-decoration: none; }
+        .content a:hover { text-decoration: underline; }
+        .content table { border-collapse: collapse; width: 100%; margin: 12px 0; }
+        .content th, .content td { border: 1px solid var(--border-color); padding: 8px; text-align: left; }
+        .content th { background: #f5f5f7; font-weight: 600; }
+    </style>
     <style>
         :root {
             --bg-color: #ffffff;
@@ -392,7 +407,7 @@
             
             const html = round.model_responses.map(resp => {
                 const isError = !resp.success || resp.error_message;
-                const content = resp.success ? resp.content : ('❌ ' + resp.error_message);
+                const content = resp.success ? marked.parse(resp.content) : ('❌ ' + resp.error_message);
                 
                 const errorDetail = isAdmin && isError ? `
                     <button class="show-error-btn" onclick="this.nextElementSibling.style.display='block'">查看详细错误</button>
@@ -587,7 +602,7 @@
                                         eventSources[modelKey].content += data.chunk;
                                         const contentEl = document.querySelector(`#${eventSources[modelKey].containerId} .content`);
                                         if (contentEl) {
-                                            contentEl.textContent = eventSources[modelKey].content;
+                                            contentEl.innerHTML = marked.parse(eventSources[modelKey].content);
                                         }
                                         window.scrollTo(0, document.body.scrollHeight);
                                     }
@@ -595,7 +610,7 @@
                                     if (data.error) {
                                         const contentEl = document.querySelector(`#${eventSources[modelKey].containerId} .content`);
                                         if (contentEl) {
-                                            contentEl.textContent = '❌ ' + data.error;
+                                            contentEl.innerHTML = '❌ ' + marked.parse(data.error);
                                             contentEl.parentElement.classList.add('error');
                                         }
                                     }
