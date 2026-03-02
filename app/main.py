@@ -418,6 +418,7 @@ AVAILABLE_MODELS = {
         {"id": "hunyuan-standard", "name": "混元标准", "desc": "平衡性能与成本"},
         {"id": "hunyuan-pro", "name": "混元 Pro", "desc": "最强性能"},
         {"id": "hunyuan-turbo", "name": "混元 Turbo", "desc": "高性能，适合复杂任务"},
+        {"id": "hunyuan-t1-latest", "name": "混元 T1 最新", "desc": "最新一代模型，性能最优"},
     ],
     "aliyun": [
         {"id": "qwen-turbo", "name": "Qwen Turbo", "desc": "速度快，成本低"},
