@@ -147,7 +147,9 @@ async def call_tencent_api(message: str, api_key: str, model_id: str, user_id: i
     url = "https://hunyuan.tencentcloudapi.com"
     headers = {
         "Content-Type": "application/json",
-        "Authorization": f"Bearer {api_key}"
+        "Authorization": f"Bearer {api_key}",
+        "X-TC-Version": "2017-03-12",
+        "X-TC-Action": "ChatCompletions"
     }
     
     # 默认模型
