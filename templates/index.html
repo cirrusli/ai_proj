@@ -19,6 +19,7 @@
         .content table { border-collapse: collapse; width: 100%; margin: 12px 0; }
         .content th, .content td { border: 1px solid var(--border-color); padding: 8px; text-align: left; }
         .content th { background: #f5f5f7; font-weight: 600; }
+        .content.collapsed { max-height: 3em; overflow: hidden; position: relative; }
     </style>
     <style>
         :root {
@@ -469,9 +470,11 @@
                 return '';
             }
             
-            const html = round.model_responses.map(resp => {
+            const html = round.model_responses.map((resp, index) => {
                 const isError = !resp.success || resp.error_message;
                 const content = resp.success ? marked.parse(resp.content) : ('❌ ' + resp.error_message);
+                const shouldFold = resp.content && resp.content.length > 20;
+                const uniqueId = `content-${round.round}-${index}`;
                 
                 const errorDetail = isAdmin && isError ? `
                     <button class="show-error-btn" onclick="this.nextElementSibling.style.display='block'">查看详细错误</button>
@@ -479,12 +482,16 @@
                 ` : '';
                 
                 return `
-                    <div class="model-response ${isError ? 'error' : ''}">
+                    <div class="model-response ${isError ? 'error' : ''}" style="position: relative;">
                         <div class="model-name">
                             <span>${resp.model === 'tencent' ? '腾讯云' : '阿里云'} ${resp.model_id ? `(${resp.model_id})` : ''}</span>
                             <span class="latency">${resp.latency_ms || 0}ms</span>
                         </div>
-                        <div class="content">${content}</div>
+                        <div class="content ${shouldFold ? 'collapsed' : ''}" id="${uniqueId}" style="${shouldFold ? 'max-height: 3em; overflow: hidden; position: relative;' : ''}">
+                            ${content}
+                            ${shouldFold ? `<div style="position: absolute; bottom: 0; left: 0; right: 0; height: 2em; background: linear-gradient(transparent, white);"></div>` : ''}
+                        </div>
+                        ${shouldFold ? `<button onclick="toggleContent('${uniqueId}', this)" style="position: absolute; bottom: 8px; right: 8px; padding: 4px 12px; background: var(--accent-color); color: white; border: none; border-radius: 6px; font-size: 12px; cursor: pointer; z-index: 10;">展开</button>` : ''}
                         ${errorDetail}
                     </div>
                 `;
@@ -499,6 +506,25 @@
                     ${html}
                 </div>
             `;
+        }
+        
+        function toggleContent(contentId, btn) {
+            const content = document.getElementById(contentId);
+            const isCollapsed = content.classList.contains('collapsed');
+            
+            if (isCollapsed) {
+                // 展开
+                content.classList.remove('collapsed');
+                content.style.maxHeight = 'none';
+                content.style.overflow = 'visible';
+                btn.textContent = '收起';
+            } else {
+                // 收起
+                content.classList.add('collapsed');
+                content.style.maxHeight = '3em';
+                content.style.overflow = 'hidden';
+                btn.textContent = '展开';
+            }
         }
         
         // 生成头像
@@ -677,7 +703,41 @@
                                         eventSources[modelKey].content += data.chunk;
                                         const contentEl = document.querySelector(`#${eventSources[modelKey].containerId} .content`);
                                         if (contentEl) {
-                                            contentEl.innerHTML = marked.parse(eventSources[modelKey].content);
+                                            const fullContent = marked.parse(eventSources[modelKey].content);
+                                            contentEl.innerHTML = fullContent;
+                                            
+                                            // 检查是否需要折叠（流式完成后）
+                                            if (eventSources[modelKey].content.length > 20 && !contentEl.querySelector('button')) {
+                                                contentEl.classList.add('collapsed');
+                                                contentEl.style.maxHeight = '3em';
+                                                contentEl.style.overflow = 'hidden';
+                                                contentEl.style.position = 'relative';
+                                                
+                                                // 添加渐变遮罩
+                                                const gradient = document.createElement('div');
+                                                gradient.style.cssText = 'position: absolute; bottom: 0; left: 0; right: 0; height: 2em; background: linear-gradient(transparent, white);';
+                                                contentEl.appendChild(gradient);
+                                                
+                                                // 添加展开按钮
+                                                const expandBtn = document.createElement('button');
+                                                expandBtn.textContent = '展开';
+                                                expandBtn.style.cssText = 'position: absolute; bottom: 8px; right: 8px; padding: 4px 12px; background: var(--accent-color); color: white; border: none; border-radius: 6px; font-size: 12px; cursor: pointer; z-index: 10;';
+                                                expandBtn.onclick = function() {
+                                                    const isCollapsed = contentEl.classList.contains('collapsed');
+                                                    if (isCollapsed) {
+                                                        contentEl.classList.remove('collapsed');
+                                                        contentEl.style.maxHeight = 'none';
+                                                        contentEl.style.overflow = 'visible';
+                                                        expandBtn.textContent = '收起';
+                                                    } else {
+                                                        contentEl.classList.add('collapsed');
+                                                        contentEl.style.maxHeight = '3em';
+                                                        contentEl.style.overflow = 'hidden';
+                                                        expandBtn.textContent = '展开';
+                                                    }
+                                                };
+                                                contentEl.appendChild(expandBtn);
+                                            }
                                         }
                                         window.scrollTo(0, document.body.scrollHeight);
                                     }
