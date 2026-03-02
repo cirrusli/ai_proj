@@ -146,6 +146,55 @@ pytest --cov=app --cov-report=html
 - ✅ 模型列表 API
 - ✅ 安全性（SQL 注入/Cookie）
 
+## 🐳 Docker 部署
+
+### Docker Compose（推荐）
+
+```bash
+# 构建并启动
+docker-compose up -d
+
+# 查看日志
+docker-compose logs -f ai-comparator
+
+# 停止服务
+docker-compose down
+
+# 重启服务
+docker-compose restart
+```
+
+访问：http://localhost
+
+### 单独 Docker
+
+```bash
+# 构建镜像
+docker build -t ai-comparator .
+
+# 运行容器
+docker run -d -p 8000:8000 \
+  -v ai_data:/app \
+  --name ai-comparator \
+  ai-comparator
+```
+
+### Kubernetes 部署
+
+```bash
+# 创建资源
+kubectl apply -f k8s/deployment.yaml
+
+# 查看状态
+kubectl get pods -l app=ai-comparator
+
+# 查看日志
+kubectl logs -l app=ai-comparator
+
+# 扩缩容
+kubectl scale deployment ai-comparator --replicas=3
+```
+
 ## 🛠️ 开发
 
 ### 添加新模型提供商

@@ -270,6 +270,11 @@
                 <div id="statusList" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;"></div>
             </div>
             
+            <!-- 配置成功提示 -->
+            <div id="configSuccess" class="success-msg" style="display: none; text-align: center;">
+                ✓ API Key 配置成功！现在可以开始对话了
+            </div>
+            
             <!-- 腾讯云 -->
             <div class="provider-section">
                 <div class="provider-header">
@@ -410,22 +415,8 @@
                     `).join('');
                     document.getElementById('statusList').innerHTML = statusHtml;
                     
-                    // 底部列表保持
-                    document.getElementById('savedKeys').style.display = 'block';
-                    const html = data.keys.map(key => `
-                        <div class="key-item">
-                            <div>
-                                <span class="provider-badge provider-${key.provider}">
-                                    ${key.provider === 'tencent' ? '☁️ 腾讯云' : '🔶 阿里云'}
-                                </span>
-                                <span class="key-masked">••••••••</span>
-                            </div>
-                            <div style="font-size: 12px; color: var(--text-secondary);">
-                                模型：${key.model_id || '默认'}
-                            </div>
-                        </div>
-                    `).join('');
-                    document.getElementById('keysList').innerHTML = html;
+                    // 底部列表不再显示（顶部已经有了）
+                    document.getElementById('savedKeys').style.display = 'none';
                 }
             } catch (error) {
                 console.error('加载 Keys 失败:', error);
@@ -467,11 +458,17 @@
                     });
                 }
                 
-                const msg = document.getElementById('successMsg');
-                msg.style.display = 'block';
-                setTimeout(() => msg.style.display = 'none', 2000);
+                // 显示成功提示
+                const configSuccess = document.getElementById('configSuccess');
+                configSuccess.style.display = 'block';
+                setTimeout(() => configSuccess.style.display = 'none', 3000);
                 
-                loadKeys();
+                // 刷新配置状态
+                await loadKeys();
+                
+                // 清空输入框
+                document.getElementById('tencentKey').value = '';
+                document.getElementById('aliyunKey').value = '';
             } catch (error) {
                 alert('保存失败：' + error.message);
             } finally {

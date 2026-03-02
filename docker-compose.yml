@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  # AI 模型对比应用
+  ai-comparator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ai-comparator
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONUNBUFFERED=1
+    volumes:
+      # 持久化数据库
+      - ai_data:/app
+      # 可选：挂载代码用于开发
+      # - ./app:/app/app
+      # - ./templates:/app/templates
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8000/api/models', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - ai-network
+
+  # Nginx 反向代理（可选）
+  nginx:
+    image: nginx:alpine
+    container_name: ai-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - ai-comparator
+    restart: unless-stopped
+    networks:
+      - ai-network
+
+volumes:
+  ai_data:
+    driver: local
+
+networks:
+  ai-network:
+    driver: bridge

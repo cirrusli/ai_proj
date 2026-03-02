@@ -1,0 +1,61 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+
+# 测试
+tests/
+.pytest_cache/
+.coverage
+htmlcov/
+*.cover
+
+# 虚拟环境
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 数据库
+*.db
+*.sqlite
+*.sqlite3
+
+# 日志
+*.log
+
+# 文档
+*.md
+!requirements.txt
+README.md
+SECURITY.md
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Kubernetes
+k8s/
+
+# Nginx
+nginx.conf
+ssl/
+
+# 其他
+.DS_Store
+Thumbs.db

@@ -290,7 +290,11 @@
         
         async function send() {
             const message = document.getElementById('userMessage').value.trim();
-            if (!message) return;
+            if (!message) {
+                alert('请输入问题内容！');
+                document.getElementById('userMessage').focus();
+                return;
+            }
             
             const models = Array.from(document.querySelectorAll('.model-checkbox input:checked'))
                 .map(cb => cb.value);
