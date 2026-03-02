@@ -776,14 +776,16 @@ async def chat_stream(request: ChatRequest, request_obj: Request):
                 responses[name]["error_message"] = str(e)
                 yield f"event: {name}\ndata: {json.dumps({'error': str(e), 'model_id': model_ids.get(name)}, ensure_ascii=False)}\n\n"
         
-        # 合并所有流
-        import asyncio
-        stream_tasks = [collect_stream(name, stream) for name, stream in tasks]
-        
-        # 使用 asyncio.as_completed 来并发处理
-        for task in asyncio.as_completed(stream_tasks):
-            async for data in await task:
-                yield data
+        # 简单处理：顺序执行流式任务（先腾讯后阿里）
+        for name, stream in tasks:
+            try:
+                async for chunk in stream:
+                    responses[name]["content"] += chunk
+                    yield f"event: {name}\ndata: {json.dumps({'chunk': chunk, 'model_id': model_ids.get(name)}, ensure_ascii=False)}\n\n"
+            except Exception as e:
+                responses[name]["success"] = False
+                responses[name]["error_message"] = str(e)
+                yield f"event: {name}\ndata: {json.dumps({'error': str(e), 'model_id': model_ids.get(name)}, ensure_ascii=False)}\n\n"
         
         # 发送完成信号
         yield f"event: done\ndata: {json.dumps({'session_id': session_id, 'round': current_round}, ensure_ascii=False)}\n\n"
