@@ -10,6 +10,7 @@ import asyncio
 import time
 import sqlite3
 import uuid
+import json
 
 app = FastAPI(title="AI Model Comparator")
 
@@ -51,26 +52,15 @@ def init_db():
             FOREIGN KEY (user_id) REFERENCES users(id)
         )
     ''')
-    # 消息表
+    # 对话历史表（按轮次记录，包含用户消息和所有模型的回复）
     cursor.execute('''
-        CREATE TABLE IF NOT EXISTS messages (
+        CREATE TABLE IF NOT EXISTS chat_history (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             session_id TEXT,
+            round INTEGER,
             user_id INTEGER,
             user_message TEXT,
-            timestamp DATETIME DEFAULT (datetime('now', 'localtime')),
-            FOREIGN KEY (user_id) REFERENCES users(id)
-        )
-    ''')
-    # 响应表
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS responses (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            session_id TEXT,
-            user_id INTEGER,
-            model_name TEXT,
-            content TEXT,
-            latency_ms INTEGER,
+            model_responses TEXT,  -- JSON 格式：[{"model": "tencent", "model_id": "hunyuan-t1", "content": "...", "success": true}]
             timestamp DATETIME DEFAULT (datetime('now', 'localtime')),
             FOREIGN KEY (user_id) REFERENCES users(id)
         )
@@ -560,15 +550,12 @@ async def chat(request: ChatRequest, request_obj: Request):
     finally:
         conn.close()
     
-    # 保存用户消息
+    # 计算当前对话轮次
     conn = sqlite3.connect('chat_history.db')
     try:
         cursor = conn.cursor()
-        cursor.execute(
-            "INSERT INTO messages (session_id, user_id, user_message) VALUES (?, ?, ?)",
-            (session_id, user_id, request.user_message)
-        )
-        conn.commit()
+        cursor.execute("SELECT COALESCE(MAX(round), 0) FROM chat_history WHERE session_id = ?", (session_id,))
+        current_round = cursor.fetchone()[0] + 1
     finally:
         conn.close()
     
@@ -637,15 +624,27 @@ async def chat(request: ChatRequest, request_obj: Request):
     
     total_latency = int((time.time() - start_time) * 1000)
     
-    # 保存模型响应
+    # 保存对话历史（一轮对话，包含用户消息和所有模型回复）
     conn = sqlite3.connect('chat_history.db')
     try:
         cursor = conn.cursor()
-        for resp in results:
-            cursor.execute(
-                "INSERT INTO responses (session_id, user_id, model_name, content, latency_ms) VALUES (?, ?, ?, ?, ?)",
-                (session_id, user_id, resp.model_name, resp.content, resp.latency_ms)
-            )
+        # 将模型响应序列化为 JSON
+        model_responses_json = json.dumps([
+            {
+                "model": resp.model_name,
+                "model_id": resp.model_id,
+                "content": resp.content,
+                "success": resp.success,
+                "error_message": resp.error_message,
+                "latency_ms": resp.latency_ms
+            }
+            for resp in results
+        ], ensure_ascii=False)
+        
+        cursor.execute(
+            "INSERT INTO chat_history (session_id, round, user_id, user_message, model_responses) VALUES (?, ?, ?, ?, ?)",
+            (session_id, current_round, user_id, request.user_message, model_responses_json)
+        )
         conn.commit()
     finally:
         conn.close()
