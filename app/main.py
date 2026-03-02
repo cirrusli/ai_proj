@@ -121,6 +121,7 @@ class ChatRequest(BaseModel):
     session_id: Optional[str] = None
     user_message: str
     models: List[str] = ["tencent", "aliyun"]
+    history: Optional[List[dict]] = None  # 多轮对话历史 [{"role": "user/assistant", "content": "..."}]
 
 class ModelResponse(BaseModel):
     model_name: str
@@ -135,7 +136,7 @@ class ChatResponse(BaseModel):
     total_latency_ms: int
 
 # API 调用实现
-async def call_tencent_api(message: str, api_key: str, model_id: str, user_id: int = None) -> str:
+async def call_tencent_api(message: str, api_key: str, model_id: str, user_id: int = None, history: List[dict] = None) -> str:
     """调用腾讯云混元 API（OpenAI 兼容接口）"""
     import httpx
     import logging
@@ -155,12 +156,21 @@ async def call_tencent_api(message: str, api_key: str, model_id: str, user_id: i
     if not model_id:
         model_id = "hunyuan-lite"
     
+    # 构建消息历史（支持多轮对话）
+    messages = []
+    if history and len(history) > 0:
+        # 添加历史对话
+        for msg in history[-10:]:  # 最多保留最近 10 轮
+            if msg.get("role") in ["user", "assistant"]:
+                messages.append({"role": msg["role"], "content": msg["content"]})
+    
+    # 添加当前消息
+    messages.append({"role": "user", "content": message})
+    
     # OpenAI 兼容格式
     payload = {
         "model": model_id,
-        "messages": [
-            {"role": "user", "content": message}
-        ]
+        "messages": messages
     }
     
     try:
@@ -192,7 +202,7 @@ async def call_tencent_api(message: str, api_key: str, model_id: str, user_id: i
         logger.error(f"调用失败：{str(e)}")
         raise
 
-async def call_aliyun_api(message: str, api_key: str, model_id: str, user_id: int = None) -> str:
+async def call_aliyun_api(message: str, api_key: str, model_id: str, user_id: int = None, history: List[dict] = None) -> str:
     """调用阿里云百炼 API"""
     import httpx
     import logging
@@ -210,12 +220,19 @@ async def call_aliyun_api(message: str, api_key: str, model_id: str, user_id: in
         "Authorization": f"Bearer {api_key}"
     }
     
+    # 构建消息历史（支持多轮对话）
+    messages = []
+    if history and len(history) > 0:
+        for msg in history[-10:]:  # 最多保留最近 10 轮
+            if msg.get("role") in ["user", "assistant"]:
+                messages.append({"role": msg["role"], "content": msg["content"]})
+    
+    messages.append({"role": "user", "content": message})
+    
     payload = {
         "model": model_id,
         "input": {
-            "messages": [
-                {"role": "user", "content": message}
-            ]
+            "messages": messages
         }
     }
     
@@ -493,6 +510,26 @@ async def save_api_keys(request: Request):
     
     return {"success": True}
 
+@app.delete("/api/keys/{provider}")
+async def delete_api_key(provider: str, request: Request):
+    """删除指定 provider 的 API Key"""
+    if not hasattr(request.state, 'user'):
+        raise HTTPException(status_code=401, detail="未登录")
+    
+    if provider not in ["tencent", "aliyun"]:
+        raise HTTPException(status_code=400, detail="不支持的 provider")
+    
+    conn = sqlite3.connect('chat_history.db')
+    try:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM api_keys WHERE user_id = ? AND provider = ?", 
+                       (request.state.user['id'], provider))
+        conn.commit()
+    finally:
+        conn.close()
+    
+    return {"success": True}
+
 @app.post("/api/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest, request_obj: Request):
     """多模型并发对话接口"""
@@ -541,7 +578,8 @@ async def chat(request: ChatRequest, request_obj: Request):
                 request.user_message, 
                 tencent_config["api_key"], 
                 tencent_config["model_id"],
-                user_id
+                user_id,
+                request.history
             )))
         else:
             results.append(ModelResponse(
@@ -559,7 +597,8 @@ async def chat(request: ChatRequest, request_obj: Request):
                 request.user_message, 
                 aliyun_config["api_key"], 
                 aliyun_config["model_id"],
-                user_id
+                user_id,
+                request.history
             )))
         else:
             results.append(ModelResponse(

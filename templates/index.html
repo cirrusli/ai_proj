@@ -338,6 +338,7 @@
     <script>
         let sessionId = localStorage.getItem('sessionId') || null;
         let currentUser = null;
+        let conversationHistory = [];  // 多轮对话历史
         
         // 生成头像
         function generateAvatar(seed, size = 24) {
@@ -452,13 +453,27 @@
                     body: JSON.stringify({
                         session_id: sessionId,
                         user_message: message,
-                        models: models
+                        models: models,
+                        history: conversationHistory
                     })
                 });
                 
                 const data = await response.json();
                 sessionId = data.session_id;
                 localStorage.setItem('sessionId', sessionId);
+                
+                // 更新对话历史
+                conversationHistory.push({ role: "user", content: message });
+                data.responses.forEach(resp => {
+                    if (resp.success) {
+                        conversationHistory.push({ role: "assistant", content: resp.content });
+                    }
+                });
+                
+                // 保留最近 20 条消息（10 轮对话）
+                if (conversationHistory.length > 20) {
+                    conversationHistory = conversationHistory.slice(-20);
+                }
                 
                 renderResponses(data.responses, data.total_latency_ms);
                 document.getElementById('userMessage').value = '';

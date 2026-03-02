@@ -267,7 +267,7 @@
             <!-- 已配置状态 -->
             <div id="configStatus" style="margin-bottom: 32px; display: none;">
                 <h3 style="font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 16px; text-transform: uppercase; letter-spacing: 0.08em;">当前配置状态</h3>
-                <div id="statusList" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;"></div>
+                <div id="statusList" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px;"></div>
             </div>
             
             <!-- 配置成功提示 -->
@@ -401,14 +401,22 @@
                     document.getElementById('configStatus').style.display = 'block';
                     const statusHtml = data.keys.map(key => `
                         <div style="padding: 16px; background: white; border-radius: 12px; border: 1px solid var(--divider-color);">
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                                 <span class="provider-badge provider-${key.provider}" style="font-size: 14px; padding: 6px 14px;">
                                     ${key.provider === 'tencent' ? '☁️ 腾讯云' : '🔶 阿里云'}
                                 </span>
-                                <span style="font-size: 12px; color: #16a34a; font-weight: 500;">✓ 已配置</span>
+                                <div style="display: flex; gap: 8px; align-items: center;">
+                                    <span style="font-size: 12px; color: #16a34a; font-weight: 500;">✓ 已配置</span>
+                                    <button onclick="deleteKey('${key.provider}')" style="padding: 4px 10px; font-size: 12px; background: #ff453a; color: white; border: none; border-radius: 6px; cursor: pointer;">删除</button>
+                                </div>
                             </div>
                             <div style="font-size: 13px; color: var(--text-secondary);">
-                                <div style="margin-bottom: 4px;">模型：<strong style="color: var(--text-primary);">${key.model_id || '默认'}</strong></div>
+                                <div style="margin-bottom: 8px;">
+                                    <div style="margin-bottom: 4px;">当前模型：<strong style="color: var(--text-primary);">${key.model_id || '默认'}</strong></div>
+                                    <select onchange="switchModel('${key.provider}', this.value)" style="font-size: 12px; padding: 6px 10px; border: 1px solid var(--border-color); border-radius: 6px; width: 100%;">
+                                        ${getProviderModels(key.provider)}
+                                    </select>
+                                </div>
                                 <div>Key：••••••••••••</div>
                             </div>
                         </div>
@@ -420,6 +428,46 @@
                 }
             } catch (error) {
                 console.error('加载 Keys 失败:', error);
+            }
+        }
+        
+        function getProviderModels(provider) {
+            const models = modelsData[provider] || [];
+            return models.map(m => `<option value="${m.id}" ${m.id === currentModels[provider] ? 'selected' : ''}>${m.name}</option>`).join('');
+        }
+        
+        let currentModels = {};
+        
+        async function switchModel(provider, modelId) {
+            try {
+                const key = document.getElementById(provider === 'tencent' ? 'tencentKey' : 'aliyunKey').value;
+                await fetch('/api/keys', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        provider, 
+                        api_key: '••••••••',  // 占位符，后端会保留原 key
+                        model_id: modelId
+                    })
+                });
+                currentModels[provider] = modelId;
+                // 刷新显示
+                await loadKeys();
+            } catch (error) {
+                alert('切换模型失败：' + error.message);
+            }
+        }
+        
+        async function deleteKey(provider) {
+            if (!confirm(`确定要删除${provider === 'tencent' ? '腾讯云' : '阿里云'}的 API Key 配置吗？`)) {
+                return;
+            }
+            
+            try {
+                await fetch(`/api/keys/${provider}`, { method: 'DELETE' });
+                await loadKeys();
+            } catch (error) {
+                alert('删除失败：' + error.message);
             }
         }
         
