@@ -141,10 +141,35 @@
         .main {
             max-width: 980px;
             margin: 0 auto;
-            padding: 40px 22px 80px;
+            padding: 40px 22px 120px;  /* 底部留出输入框空间 */
         }
         .chat-section {
             margin-bottom: 40px;
+        }
+        /* 固定底部输入框 */
+        .input-area-fixed {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: calc(100% - 44px);
+            max-width: 936px;
+            z-index: 1000;
+        }
+        .input-area-fixed .input-area {
+            background: white;
+            border: 1px solid var(--divider-color);
+            border-radius: 16px;
+            padding: 8px;
+            display: flex;
+            align-items: flex-end;
+            gap: 8px;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.1);
+        }
+        .input-area-fixed .input-area:focus-within {
+            border-color: var(--accent-color);
+            box-shadow: 0 4px 24px rgba(0,113,227,0.15);
         }
         .models-selector {
             display: flex;
@@ -347,19 +372,22 @@
                 </label>
                 <button onclick="newSession()" style="margin-left: auto; padding: 6px 14px; background: var(--accent-color); color: white; border: none; border-radius: 980px; font-size: 13px; cursor: pointer;">+ 新对话</button>
             </div>
-            
-            <div class="input-area">
-                <textarea id="userMessage" placeholder="输入你的问题..." rows="1" onkeydown="handleKeydown(event)"></textarea>
-                <button id="sendBtn" class="send-btn" onclick="send()" title="发送">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M12 19V5M5 12l7-7 7 7"/>
-                    </svg>
-                </button>
-            </div>
         </section>
         
         <div id="responseArea" class="response-area"></div>
     </main>
+    
+    <!-- 固定底部输入框 -->
+    <div class="input-area-fixed">
+        <div class="input-area">
+            <textarea id="userMessage" placeholder="输入你的问题..." rows="1" onkeydown="handleKeydown(event)"></textarea>
+            <button id="sendBtn" class="send-btn" onclick="send()" title="发送">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 19V5M5 12l7-7 7 7"/>
+                </svg>
+            </button>
+        </div>
+    </div>
 
     <script>
         let sessionId = localStorage.getItem('sessionId') || null;
