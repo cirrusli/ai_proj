@@ -775,23 +775,47 @@ async def chat_stream(request: ChatRequest, request_obj: Request):
         
         # 收集所有响应
         import time as time_module
+        import asyncio
+        from asyncio import Queue
+        
         responses = {name: {"content": "", "success": True, "error_message": None, "latency_ms": 0} for name, _ in tasks}
         model_start_times = {name: time_module.time() for name, _ in tasks}
         
-        # 顺序执行但实时输出（简化方案，避免并发复杂性）
-        for name, stream in tasks:
+        # 使用队列实现真正的并发流式输出
+        output_queue = Queue()
+        
+        async def stream_to_queue(name: str, stream):
             start = model_start_times[name]
             try:
                 async for chunk in stream:
                     responses[name]["content"] += chunk
-                    # 实时发送，不缓冲
-                    yield f"event: {name}\ndata: {json.dumps({'chunk': chunk, 'model_id': model_ids.get(name)}, ensure_ascii=False)}\n\n"
+                    await output_queue.put(('chunk', name, chunk))
                 responses[name]["latency_ms"] = int((time_module.time() - start) * 1000)
+                await output_queue.put(('done', name, None))
             except Exception as e:
                 responses[name]["success"] = False
                 responses[name]["error_message"] = str(e)
                 responses[name]["latency_ms"] = int((time_module.time() - start) * 1000)
-                yield f"event: {name}\ndata: {json.dumps({'error': str(e), 'model_id': model_ids.get(name)}, ensure_ascii=False)}\n\n"
+                await output_queue.put(('error', name, str(e)))
+                await output_queue.put(('done', name, None))
+        
+        # 并发执行所有流式任务
+        async def run_streams():
+            await asyncio.gather(*[stream_to_queue(name, stream) for name, stream in tasks], return_exceptions=True)
+            await output_queue.put(('finish', None, None))
+        
+        # 启动并发任务
+        asyncio.create_task(run_streams())
+        
+        # 从队列读取并输出
+        while True:
+            event_type, name, data = await output_queue.get()
+            if event_type == 'finish':
+                break
+            elif event_type == 'chunk':
+                yield f"event: {name}\ndata: {json.dumps({'chunk': data, 'model_id': model_ids.get(name)}, ensure_ascii=False)}\n\n"
+            elif event_type == 'error':
+                yield f"event: {name}\ndata: {json.dumps({'error': data, 'model_id': model_ids.get(name)}, ensure_ascii=False)}\n\n"
         
         # 发送完成信号
         yield f"event: done\ndata: {json.dumps({'session_id': session_id, 'round': current_round}, ensure_ascii=False)}\n\n"
