@@ -8,13 +8,17 @@
 ## ✨ 功能特性
 
 - 🚀 **多模型对比** - 同时调用腾讯云 + 阿里云，对比回答质量
-- 🎯 **丰富模型** - 支持 9 种腾讯混元 + 4 种阿里 Qwen 模型
-- 🔐 **用户系统** - 登录/注册（最多 10 用户）
-- 🔑 **API Key 管理** - 安全的密钥配置与存储
-- 💬 **对话历史** - SQLite 持久化存储
-- 🎨 **简约 UI** - 苹果风格界面设计
+- 🎯 **丰富模型** - 支持 9 种腾讯混元 + 10 种阿里 Qwen 模型
+- 🔐 **用户系统** - 登录/注册（最多 10 用户，无密码认证）
+- 🔑 **API Key 管理** - 安全的密钥配置与存储（前端不暴露）
+- 💬 **对话历史** - SQLite 持久化存储，支持多轮对话上下文
+- 🎨 **简约 UI** - 苹果风格界面设计，悬浮输入框
 - 📱 **响应式** - 适配桌面和移动端
-- 👤 **个人主页** - GitHub 风格头像、个性签名
+- 👤 **个人主页** - GitHub 风格头像、个性签名、真实统计
+- 📊 **会话管理** - 新建/切换/编辑标题/历史列表
+- ⚡ **流式输出** - SSE 实时打字机效果，真正并发
+- 📝 **Markdown** - 支持代码/表格/列表渲染
+- 📈 **数据统计** - 模型使用次数/延迟/会话数/消息数
 
 ## 🚀 快速启动
 
@@ -85,14 +89,20 @@ python3 app/main.py
 - [API 调用示例](https://cloud.tencent.com/document/product/1729/111007)
 - [API Key 管理](https://cloud.tencent.com/document/product/1729/111008)
 
-### 阿里云通义千问（4 种）
+### 阿里云通义千问（10 种）
 
 | 模型 | 描述 | 适用场景 |
 |------|------|----------|
-| qwen-turbo | 速度快，成本低 | 高频调用 |
+| qwen-flash | 极速响应，低成本 | 简单问答 |
+| qwen-coder | 代码专用模型 | 编程/调试 |
+| qwen3.5 | 最新版本 | 通用场景 |
+| qwen3 | 经典版本 | 日常使用 |
 | qwen-plus | 平衡性能与成本 | 日常使用 |
 | qwen-max | 最强性能 | 复杂任务 |
 | qwen-max-longcontext | 支持超长上下文 | 长文档分析 |
+| qwen-turbo | 速度快，成本低 | 高频调用 |
+| qwen-long | 长文本处理 | 文档理解 |
+| qwen-vl-max | 视觉语言模型 | 图像理解 |
 
 📖 **官方文档**：[阿里云百炼](https://help.aliyun.com/product/42154.html)
 
@@ -156,10 +166,53 @@ users (id, username, email, bio, avatar_seed, role, created_at)
 -- API Key 配置
 api_keys (id, user_id, provider, api_key, model_id, created_at)
 
--- 对话历史
-messages (id, session_id, user_id, user_message, timestamp)
-responses (id, session_id, user_id, model_name, content, latency_ms, timestamp)
+-- 对话历史（按轮次记录，包含所有模型响应）
+chat_history (id, session_id, round, user_id, user_message, model_responses JSON, timestamp)
+
+-- 会话标题
+session_titles (session_id PK, user_id, title, created_at)
 ```
+
+**索引优化：**
+- `idx_chat_history_user` - 按用户查询
+- `idx_chat_history_session` - 按会话查询
+- `idx_chat_history_timestamp` - 按时间查询
+
+**统计视图：**
+- `user_model_stats` - 用户统计（会话数/轮数/消息数）
+- `model_usage_stats` - 模型使用统计（次数/平均延迟）
+
+## 💡 使用技巧
+
+### 会话管理
+
+**Q: 新建会话后如何找到之前的对话？**
+
+A: 有三种方式：
+
+1. **会话列表** - 点击页面顶部的会话列表区域，显示所有历史会话
+2. **会话标题** - 点击 ✏️ 图标编辑会话标题，方便识别（如"Python 问题"、"论文写作"）
+3. **时间排序** - 会话列表按最后更新时间排序，最近的在最上面
+
+**Q: 如何切换会话？**
+
+A: 点击会话列表中的任意会话即可切换，对话历史会自动加载。
+
+**Q: 如何新建会话？**
+
+A: 点击页面右上角的"+ 新对话"按钮。
+
+### 模型对比
+
+- 同时勾选腾讯云 + 阿里云，对比同一问题的不同回答
+- 在设置页可以随时切换模型，无需重新输入 API Key
+- 每个模型响应显示延迟时间（ms），帮助选择最优模型
+
+### 长回复阅读
+
+- 超过 100 字的回复会自动折叠（6em 高度）
+- 点击右下角"展开"按钮查看完整内容
+- 再次点击可收起
 
 ## 🧪 测试
 
