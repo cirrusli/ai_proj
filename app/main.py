@@ -332,9 +332,68 @@ async def api_login(request: Request):
 
 @app.get("/api/me")
 async def get_current_user(request: Request):
+    """获取当前用户信息（包含统计数据）"""
     if not hasattr(request.state, 'user'):
         return {"authenticated": False}
-    return {"authenticated": True, "user": request.state.user}
+    
+    user_id = request.state.user['id']
+    from datetime import datetime
+    conn = sqlite3.connect('chat_history.db')
+    try:
+        cursor = conn.cursor()
+        
+        # 用户基本信息
+        cursor.execute("SELECT id, username, email, bio, avatar_seed, role, created_at FROM users WHERE id = ?", (user_id,))
+        row = cursor.fetchone()
+        
+        # 统计数据
+        cursor.execute("SELECT total_sessions, total_rounds, total_messages, first_message_at, last_message_at FROM user_model_stats WHERE user_id = ?", (user_id,))
+        stats_row = cursor.fetchone()
+        
+        # 模型使用情况
+        cursor.execute("""
+            SELECT model_name, model_id, usage_count, avg_latency_ms 
+            FROM model_usage_stats 
+            WHERE user_id = ? 
+            ORDER BY usage_count DESC
+        """, (user_id,))
+        model_stats = cursor.fetchall()
+        
+        # 配置的 API Key 数量
+        cursor.execute("SELECT COUNT(*) FROM api_keys WHERE user_id = ?", (user_id,))
+        api_key_count = cursor.fetchone()[0]
+        
+        # 注册天数
+        created_at = datetime.strptime(row[6], "%Y-%m-%d %H:%M:%S") if row[6] else datetime.now()
+        days_since_register = (datetime.now() - created_at).days + 1
+        
+        return {
+            "authenticated": True,
+            "user": {
+                "id": row[0],
+                "username": row[1],
+                "email": row[2] if row[2] else None,
+                "bio": row[3],
+                "avatar_seed": row[4] or row[1],
+                "role": row[5],
+                "created_at": row[6]
+            },
+            "stats": {
+                "total_sessions": stats_row[0] if stats_row else 0,
+                "total_rounds": stats_row[1] if stats_row else 0,
+                "total_messages": stats_row[2] if stats_row else 0,
+                "first_message_at": stats_row[3] if stats_row else None,
+                "last_message_at": stats_row[4] if stats_row else None,
+                "days_since_register": days_since_register,
+                "api_keys_configured": api_key_count,
+                "models_used": [
+                    {"model_name": m[0], "model_id": m[1], "usage_count": m[2], "avg_latency_ms": round(m[3], 2) if m[3] else 0}
+                    for m in model_stats
+                ]
+            }
+        }
+    finally:
+        conn.close()
 
 @app.get("/api/users/{user_id}")
 async def get_user_profile(user_id: int, request: Request):

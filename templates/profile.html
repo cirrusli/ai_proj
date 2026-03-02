@@ -178,6 +178,14 @@
                 <div class="stat-label">发送消息数</div>
             </div>
             <div class="stat-card">
+                <div class="stat-value" id="roundCount">-</div>
+                <div class="stat-label">对话轮数</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="sessionCount">-</div>
+                <div class="stat-label">会话总数</div>
+            </div>
+            <div class="stat-card">
                 <div class="stat-value" id="configCount">-</div>
                 <div class="stat-label">配置的模型</div>
             </div>
@@ -185,6 +193,11 @@
                 <div class="stat-value" id="daysCount">-</div>
                 <div class="stat-label">注册天数</div>
             </div>
+        </div>
+        
+        <div class="edit-section" style="margin-top: 32px;">
+            <h2 style="margin-bottom: 16px;">📊 模型使用统计</h2>
+            <div id="modelStats" style="display: grid; gap: 12px;"></div>
         </div>
 
         <div class="edit-section">
@@ -251,16 +264,17 @@
                     window.location.href = '/login';
                     return;
                 }
-                currentUser = data.user;
+                currentUser = data;  // 包含 user 和 stats
                 loadProfile();
             } catch (error) {
+                console.error('加载失败:', error);
                 window.location.href = '/login';
             }
         }
         
         async function loadProfile() {
-            const resp = await fetch(`/api/users/${currentUser.id}`);
-            const user = await resp.json();
+            const user = currentUser.user;
+            const stats = currentUser.stats;
             
             document.getElementById('displayName').textContent = user.username;
             document.getElementById('username').textContent = `@${user.username}`;
@@ -269,13 +283,32 @@
             document.getElementById('email').value = user.email || '';
             document.getElementById('bioEdit').value = user.bio || '';
             
-            // 加载统计
-            document.getElementById('msgCount').textContent = '0'; // TODO: 从后端获取
-            document.getElementById('configCount').textContent = '0';
+            // 加载统计数据
+            document.getElementById('msgCount').textContent = stats.total_messages || 0;
+            document.getElementById('roundCount').textContent = stats.total_rounds || 0;
+            document.getElementById('sessionCount').textContent = stats.total_sessions || 0;
+            document.getElementById('configCount').textContent = stats.api_keys_configured || 0;
+            document.getElementById('daysCount').textContent = stats.days_since_register || 1;
             
-            const createdDate = new Date(user.created_at);
-            const days = Math.floor((new Date() - createdDate) / (1000 * 60 * 60 * 24));
-            document.getElementById('daysCount').textContent = days;
+            // 加载模型使用统计
+            const modelStatsEl = document.getElementById('modelStats');
+            if (stats.models_used && stats.models_used.length > 0) {
+                modelStatsEl.innerHTML = stats.models_used.map(m => `
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px; background: #fafafa; border-radius: 12px;">
+                        <div>
+                            <div style="font-weight: 600; font-size: 14px;">${m.model_name === 'tencent' ? '腾讯云' : '阿里云'} · ${m.model_id}</div>
+                            <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">
+                                使用 ${m.usage_count} 次 · 平均延迟 ${Math.round(m.avg_latency_ms)}ms
+                            </div>
+                        </div>
+                        <div style="font-size: 24px; font-weight: 700; color: var(--accent-color);">
+                            ${m.usage_count}
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                modelStatsEl.innerHTML = '<div style="text-align: center; padding: 32px; color: var(--text-secondary);">暂无模型使用记录</div>';
+            }
         }
         
         async function saveProfile(event) {
