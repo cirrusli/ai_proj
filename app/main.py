@@ -25,10 +25,20 @@ def init_db():
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT UNIQUE,
+            email TEXT,
+            bio TEXT,
+            avatar_seed TEXT,
             role TEXT DEFAULT 'user',
             created_at DATETIME DEFAULT (datetime('now', 'localtime'))
         )
     ''')
+    # 检查是否需要添加新列（旧数据库升级）
+    try:
+        cursor.execute("ALTER TABLE users ADD COLUMN email TEXT")
+        cursor.execute("ALTER TABLE users ADD COLUMN bio TEXT")
+        cursor.execute("ALTER TABLE users ADD COLUMN avatar_seed TEXT")
+    except sqlite3.OperationalError:
+        pass  # 列已存在
     # API Key 配置表（添加模型选择）
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS api_keys (
@@ -250,6 +260,10 @@ async def login_page():
 async def settings_page():
     return FileResponse("templates/settings.html")
 
+@app.get("/profile")
+async def profile_page():
+    return FileResponse("templates/profile.html")
+
 @app.post("/api/login")
 async def api_login(request: Request):
     from json import loads
@@ -315,6 +329,60 @@ async def get_current_user(request: Request):
     if not hasattr(request.state, 'user'):
         return {"authenticated": False}
     return {"authenticated": True, "user": request.state.user}
+
+@app.get("/api/users/{user_id}")
+async def get_user_profile(user_id: int, request: Request):
+    """获取用户公开资料"""
+    conn = sqlite3.connect('chat_history.db')
+    try:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT id, username, email, bio, avatar_seed, role, created_at 
+            FROM users WHERE id = ?
+        """, (user_id,))
+        row = cursor.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="用户不存在")
+        
+        return {
+            "id": row[0],
+            "username": row[1],
+            "email": row[2][:3] + "***" if row[2] else None,  # 脱敏
+            "bio": row[3],
+            "avatar_seed": row[4] or row[1],  # 默认用用户名
+            "role": row[5],
+            "created_at": row[6]
+        }
+    finally:
+        conn.close()
+
+@app.post("/api/profile")
+async def update_profile(request: Request):
+    """更新个人资料"""
+    if not hasattr(request.state, 'user'):
+        raise HTTPException(status_code=401, detail="未登录")
+    
+    from json import loads
+    body = await request.body()
+    data = loads(body)
+    
+    email = data.get("email", "")
+    bio = data.get("bio", "")
+    
+    # 验证邮箱格式
+    if email and "@" not in email:
+        raise HTTPException(status_code=400, detail="邮箱格式不正确")
+    
+    conn = sqlite3.connect('chat_history.db')
+    try:
+        cursor = conn.cursor()
+        cursor.execute("""
+            UPDATE users SET email = ?, bio = ? WHERE id = ?
+        """, (email, bio, request.state.user['id']))
+        conn.commit()
+        return {"success": True}
+    finally:
+        conn.close()
 
 @app.post("/api/logout")
 async def api_logout():
