@@ -411,7 +411,9 @@ async def get_api_keys(request: Request):
     
     return {"keys": keys}
 
-# 模型配置（参考官方文档：https://cloud.tencent.com/document/product/1729/104753）
+# 模型配置（参考官方文档）
+# 腾讯云：https://cloud.tencent.com/document/product/1729/104753
+# 阿里云：https://help.aliyun.com/product/42154.html
 AVAILABLE_MODELS = {
     "tencent": [
         {"id": "hunyuan-lite", "name": "混元 Lite", "desc": "轻量级，速度快"},
@@ -429,6 +431,9 @@ AVAILABLE_MODELS = {
         {"id": "qwen-plus", "name": "Qwen Plus", "desc": "平衡性能与成本"},
         {"id": "qwen-max", "name": "Qwen Max", "desc": "最强性能"},
         {"id": "qwen-max-longcontext", "name": "Qwen Max 长文本", "desc": "支持超长上下文"},
+        {"id": "qwen-vl-max", "name": "Qwen VL Max", "desc": "视觉理解模型"},
+        {"id": "qwen-vl-plus", "name": "Qwen VL Plus", "desc": "视觉理解模型"},
+        {"id": "qwen-audio-turbo", "name": "Qwen Audio Turbo", "desc": "语音理解模型"},
     ]
 }
 
