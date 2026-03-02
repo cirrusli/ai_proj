@@ -413,7 +413,7 @@ async def get_api_keys(request: Request):
 
 # 模型配置（参考官方文档）
 # 腾讯云：https://cloud.tencent.com/document/product/1729/104753
-# 阿里云：https://help.aliyun.com/product/42154.html
+# 阿里云：https://help.aliyun.com/zh/model-studio/models
 AVAILABLE_MODELS = {
     "tencent": [
         {"id": "hunyuan-lite", "name": "混元 Lite", "desc": "轻量级，速度快"},
@@ -427,13 +427,20 @@ AVAILABLE_MODELS = {
         {"id": "hunyuan-translation", "name": "混元翻译", "desc": "33 种语言互译"},
     ],
     "aliyun": [
-        {"id": "qwen-turbo", "name": "Qwen Turbo", "desc": "速度快，成本低"},
-        {"id": "qwen-plus", "name": "Qwen Plus", "desc": "平衡性能与成本"},
-        {"id": "qwen-max", "name": "Qwen Max", "desc": "最强性能"},
-        {"id": "qwen-max-longcontext", "name": "Qwen Max 长文本", "desc": "支持超长上下文"},
-        {"id": "qwen-vl-max", "name": "Qwen VL Max", "desc": "视觉理解模型"},
-        {"id": "qwen-vl-plus", "name": "Qwen VL Plus", "desc": "视觉理解模型"},
-        {"id": "qwen-audio-turbo", "name": "Qwen Audio Turbo", "desc": "语音理解模型"},
+        # 旗舰模型
+        {"id": "qwen-max", "name": "Qwen Max", "desc": "最强性能，适合复杂任务"},
+        {"id": "qwen-plus", "name": "Qwen Plus", "desc": "效果、速度、成本均衡"},
+        {"id": "qwen-flash", "name": "Qwen Flash", "desc": "速度快，成本低"},
+        {"id": "qwen-coder", "name": "Qwen Coder", "desc": "代码专用模型"},
+        # 开源版本
+        {"id": "qwen3.5", "name": "Qwen 3.5", "desc": "最新开源版本"},
+        {"id": "qwen3", "name": "Qwen 3", "desc": "开源版本"},
+        {"id": "qwen2.5", "name": "Qwen 2.5", "desc": "经典开源版本"},
+        # 视觉模型
+        {"id": "qwen-vl-max", "name": "Qwen VL Max", "desc": "视觉理解（最强）"},
+        {"id": "qwen-vl-plus", "name": "Qwen VL Plus", "desc": "视觉理解（平衡）"},
+        # 语音模型
+        {"id": "qwen-audio-turbo", "name": "Qwen Audio Turbo", "desc": "语音理解"},
     ]
 }
 
