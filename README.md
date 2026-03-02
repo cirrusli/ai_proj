@@ -304,5 +304,4 @@ MIT License
 
 **创建时间**: 2026-03-02  
 **维护者**: cirrus + 云卷 🦞  
-**GitHub**: https://github.com/cirrusli/ai_proj  
-**在线演示**: http://49.234.180.224
+**GitHub**: https://github.com/cirrusli/ai_proj
