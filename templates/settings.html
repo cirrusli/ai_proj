@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>设置 - AI 模型对比</title>
+    <style>
+        :root {
+            --bg-color: #ffffff;
+            --text-primary: #1d1d1f;
+            --text-secondary: #86868b;
+            --accent-color: #0071e3;
+            --accent-hover: #0077ed;
+            --border-color: #d2d2d7;
+            --divider-color: #e8e8ed;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: var(--bg-color);
+            color: var(--text-primary);
+            line-height: 1.47059;
+            font-weight: 400;
+            letter-spacing: -0.022em;
+        }
+        .header {
+            background: rgba(255,255,255,0.8);
+            backdrop-filter: saturate(180%) blur(20px);
+            border-bottom: 1px solid var(--divider-color);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .header-content {
+            max-width: 980px;
+            margin: 0 auto;
+            padding: 0 22px;
+            height: 52px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .header h1 {
+            font-size: 21px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        .nav-links {
+            display: flex;
+            gap: 8px;
+        }
+        .nav-links a {
+            color: var(--accent-color);
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 980px;
+            font-size: 12px;
+            font-weight: 400;
+            transition: background 0.2s;
+        }
+        .nav-links a:hover {
+            background: #f5f5f7;
+        }
+        .main {
+            max-width: 980px;
+            margin: 0 auto;
+            padding: 53px 22px 80px;
+        }
+        .section {
+            padding: 24px 0;
+            border-bottom: 1px solid var(--divider-color);
+        }
+        .section:last-child {
+            border-bottom: none;
+        }
+        h2 {
+            font-size: 28px;
+            line-height: 1.10722;
+            font-weight: 600;
+            letter-spacing: 0.004em;
+            margin-bottom: 12px;
+        }
+        .subtitle {
+            font-size: 17px;
+            line-height: 1.47059;
+            font-weight: 400;
+            color: var(--text-secondary);
+            margin-bottom: 32px;
+        }
+        .provider-section {
+            margin-bottom: 40px;
+            padding: 24px;
+            background: #fafafa;
+            border-radius: 16px;
+            border: 1px solid var(--divider-color);
+        }
+        .provider-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .provider-icon {
+            font-size: 24px;
+        }
+        .provider-name {
+            font-size: 17px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        .form-group {
+            margin-bottom: 24px;
+        }
+        label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-primary);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 8px;
+        }
+        input[type="text"], select {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            font-size: 15px;
+            line-height: 1.47059;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            background: #fff;
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 4px rgba(0,113,227,0.1);
+        }
+        select {
+            cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2386868b' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 16px center;
+            padding-right: 40px;
+        }
+        .model-desc {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-top: 6px;
+        }
+        .help-text {
+            font-size: 14px;
+            line-height: 1.42857;
+            color: var(--text-secondary);
+            margin-top: 8px;
+        }
+        .help-link {
+            color: var(--accent-color);
+            text-decoration: none;
+        }
+        .help-link:hover {
+            text-decoration: underline;
+        }
+        .btn {
+            display: inline-block;
+            padding: 12px 24px;
+            background: var(--accent-color);
+            color: #fff;
+            border: none;
+            border-radius: 980px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .btn:hover {
+            background: var(--accent-hover);
+        }
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .success-msg {
+            background: #f0fdf4;
+            color: #16a34a;
+            padding: 12px 16px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            font-size: 14px;
+            display: none;
+        }
+        .saved-keys {
+            margin-top: 32px;
+        }
+        .saved-keys h3 {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 16px;
+        }
+        .key-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px;
+            background: #fff;
+            border-radius: 12px;
+            margin-bottom: 12px;
+            border: 1px solid var(--divider-color);
+        }
+        .key-item:last-child {
+            margin-bottom: 0;
+        }
+        .provider-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 980px;
+            font-size: 13px;
+            font-weight: 500;
+        }
+        .provider-tencent {
+            background: #e8f4fd;
+            color: #0071e3;
+        }
+        .provider-aliyun {
+            background: #fef3e2;
+            color: #f57c00;
+        }
+        .key-masked {
+            color: var(--text-secondary);
+            font-family: SFMono-Regular, Consolas, "Liberation Mono", monospace;
+            font-size: 13px;
+        }
+        .model-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            background: #f5f5f7;
+            border-radius: 6px;
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-left: 8px;
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-content">
+            <h1>设置</h1>
+            <nav class="nav-links">
+                <a href="/">对话</a>
+                <a href="#" onclick="logout()">退出</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="main">
+        <section class="section">
+            <h2>API 配置</h2>
+            <p class="subtitle">配置大模型 API 密钥并选择要使用的模型</p>
+            
+            <div id="successMsg" class="success-msg">✓ 保存成功</div>
+            
+            <!-- 腾讯云 -->
+            <div class="provider-section">
+                <div class="provider-header">
+                    <span class="provider-icon">☁️</span>
+                    <span class="provider-name">腾讯云混元</span>
+                </div>
+                
+                <div class="form-group">
+                    <label for="tencentKey">API Key</label>
+                    <input type="text" id="tencentKey" placeholder="输入腾讯云 API Key">
+                    <p class="help-text">
+                        <a href="https://hunyuan.cloud.tencent.com/#/app/apiKeyManage" target="_blank" class="help-link">获取腾讯云 API Key</a>
+                    </p>
+                </div>
+                
+                <div class="form-group">
+                    <label for="tencentModel">选择模型</label>
+                    <select id="tencentModel">
+                        <option value="">加载中...</option>
+                    </select>
+                    <p class="model-desc" id="tencentModelDesc"></p>
+                </div>
+            </div>
+            
+            <!-- 阿里云 -->
+            <div class="provider-section">
+                <div class="provider-header">
+                    <span class="provider-icon">🔶</span>
+                    <span class="provider-name">阿里云百炼</span>
+                </div>
+                
+                <div class="form-group">
+                    <label for="aliyunKey">API Key</label>
+                    <input type="text" id="aliyunKey" placeholder="输入阿里云 API Key">
+                    <p class="help-text">
+                        <a href="https://bailian.console.aliyun.com/cn-beijing/?tab=model#/api-key" target="_blank" class="help-link">获取阿里云 API Key</a>
+                    </p>
+                </div>
+                
+                <div class="form-group">
+                    <label for="aliyunModel">选择模型</label>
+                    <select id="aliyunModel">
+                        <option value="">加载中...</option>
+                    </select>
+                    <p class="model-desc" id="aliyunModelDesc"></p>
+                </div>
+            </div>
+            
+            <button onclick="saveKeys()" id="saveBtn" class="btn">保存配置</button>
+            
+            <div id="savedKeys" class="saved-keys" style="display: none;">
+                <h3>已配置</h3>
+                <div id="keysList"></div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        let currentUser = null;
+        let modelsData = {};
+        
+        async function init() {
+            try {
+                const resp = await fetch('/api/me');
+                const data = await resp.json();
+                if (!data.authenticated) {
+                    window.location.href = '/login';
+                    return;
+                }
+                currentUser = data.user;
+                
+                // 加载模型列表
+                await loadModels();
+                loadKeys();
+            } catch (error) {
+                console.error('初始化失败:', error);
+                window.location.href = '/login';
+            }
+        }
+        
+        async function loadModels() {
+            try {
+                const resp = await fetch('/api/models');
+                const data = await resp.json();
+                modelsData = data.models;
+                
+                // 填充腾讯云模型
+                const tencentSelect = document.getElementById('tencentModel');
+                tencentSelect.innerHTML = modelsData.tencent.map(m => 
+                    `<option value="${m.id}">${m.name} - ${m.desc}</option>`
+                ).join('');
+                
+                // 填充阿里云模型
+                const aliyunSelect = document.getElementById('aliyunModel');
+                aliyunSelect.innerHTML = modelsData.aliyun.map(m => 
+                    `<option value="${m.id}">${m.name} - ${m.desc}</option>`
+                ).join('');
+                
+                // 绑定变更事件
+                tencentSelect.addEventListener('change', () => {
+                    const model = modelsData.tencent.find(m => m.id === tencentSelect.value);
+                    document.getElementById('tencentModelDesc').textContent = model ? model.desc : '';
+                });
+                aliyunSelect.addEventListener('change', () => {
+                    const model = modelsData.aliyun.find(m => m.id === aliyunSelect.value);
+                    document.getElementById('aliyunModelDesc').textContent = model ? model.desc : '';
+                });
+                
+                // 触发一次变更事件以显示默认描述
+                tencentSelect.dispatchEvent(new Event('change'));
+                aliyunSelect.dispatchEvent(new Event('change'));
+            } catch (error) {
+                console.error('加载模型列表失败:', error);
+            }
+        }
+        
+        async function loadKeys() {
+            try {
+                const resp = await fetch('/api/keys');
+                const data = await resp.json();
+                
+                if (data.keys && data.keys.length > 0) {
+                    document.getElementById('savedKeys').style.display = 'block';
+                    const html = data.keys.map(key => `
+                        <div class="key-item">
+                            <div>
+                                <span class="provider-badge provider-${key.provider}">
+                                    ${key.provider === 'tencent' ? '☁️ 腾讯云' : '🔶 阿里云'}
+                                </span>
+                                <span class="key-masked">••••••••</span>
+                            </div>
+                            <div style="font-size: 12px; color: var(--text-secondary);">
+                                模型：${key.model_id || '默认'}
+                            </div>
+                        </div>
+                    `).join('');
+                    document.getElementById('keysList').innerHTML = html;
+                    
+                    // 注意：不再从服务器获取完整 API Key
+                    // 用户需要重新输入 API Key 来更新配置
+                }
+            } catch (error) {
+                console.error('加载 Keys 失败:', error);
+            }
+        }
+        
+        async function saveKeys() {
+            const tencentKey = document.getElementById('tencentKey').value.trim();
+            const tencentModel = document.getElementById('tencentModel').value;
+            const aliyunKey = document.getElementById('aliyunKey').value.trim();
+            const aliyunModel = document.getElementById('aliyunModel').value;
+            
+            const btn = document.getElementById('saveBtn');
+            btn.disabled = true;
+            btn.textContent = '保存中...';
+            
+            try {
+                if (tencentKey) {
+                    await fetch('/api/keys', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            provider: 'tencent', 
+                            api_key: tencentKey,
+                            model_id: tencentModel
+                        })
+                    });
+                }
+                
+                if (aliyunKey) {
+                    await fetch('/api/keys', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            provider: 'aliyun', 
+                            api_key: aliyunKey,
+                            model_id: aliyunModel
+                        })
+                    });
+                }
+                
+                const msg = document.getElementById('successMsg');
+                msg.style.display = 'block';
+                setTimeout(() => msg.style.display = 'none', 2000);
+                
+                loadKeys();
+            } catch (error) {
+                alert('保存失败：' + error.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '保存配置';
+            }
+        }
+        
+        async function logout() {
+            try {
+                await fetch('/api/logout', { method: 'POST' });
+                window.location.href = '/login';
+            } catch (error) {
+                window.location.href = '/login';
+            }
+        }
+        
+        init();
+    </script>
+</body>
+</html>

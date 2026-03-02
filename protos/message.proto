@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package ai_proj;
+
+// 请求消息
+message ChatRequest {
+  string session_id = 1;
+  string user_message = 2;
+  repeated string models = 3;  // 要调用的模型列表
+}
+
+// 单个模型的响应
+message ModelResponse {
+  string model_name = 1;
+  string content = 2;
+  bool success = 3;
+  string error_message = 4;
+  int64 latency_ms = 5;
+}
+
+// 聚合响应
+message ChatResponse {
+  string session_id = 1;
+  repeated ModelResponse responses = 2;
+  int64 total_latency_ms = 3;
+}
