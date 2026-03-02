@@ -534,6 +534,18 @@ async def get_sessions(request: Request):
     conn = sqlite3.connect('chat_history.db')
     try:
         cursor = conn.cursor()
+        # 确保 session_titles 表存在
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS session_titles (
+                session_id TEXT PRIMARY KEY,
+                user_id INTEGER,
+                title TEXT,
+                created_at DATETIME DEFAULT (datetime('now', 'localtime')),
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            )
+        ''')
+        conn.commit()
+        
         cursor.execute("""
             SELECT h.session_id, MIN(h.timestamp) as created_at, COUNT(*) as round_count, t.title
             FROM chat_history h
