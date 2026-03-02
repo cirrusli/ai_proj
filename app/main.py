@@ -411,14 +411,18 @@ async def get_api_keys(request: Request):
     
     return {"keys": keys}
 
-# 模型配置
+# 模型配置（参考官方文档：https://cloud.tencent.com/document/product/1729/104753）
 AVAILABLE_MODELS = {
     "tencent": [
         {"id": "hunyuan-lite", "name": "混元 Lite", "desc": "轻量级，速度快"},
         {"id": "hunyuan-standard", "name": "混元标准", "desc": "平衡性能与成本"},
+        {"id": "hunyuan-standard-256k", "name": "混元标准 256K", "desc": "支持 256K 超长上下文"},
         {"id": "hunyuan-pro", "name": "混元 Pro", "desc": "最强性能"},
         {"id": "hunyuan-turbo", "name": "混元 Turbo", "desc": "高性能，适合复杂任务"},
         {"id": "hunyuan-t1-latest", "name": "混元 T1 最新", "desc": "最新一代模型，性能最优"},
+        {"id": "hunyuan-t1", "name": "混元 T1", "desc": "深度推理模型"},
+        {"id": "hunyuan-large-role-latest", "name": "混元角色扮演", "desc": "AI 数字分身、情感陪聊"},
+        {"id": "hunyuan-translation", "name": "混元翻译", "desc": "33 种语言互译"},
     ],
     "aliyun": [
         {"id": "qwen-turbo", "name": "Qwen Turbo", "desc": "速度快，成本低"},
