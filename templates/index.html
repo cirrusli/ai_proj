@@ -150,46 +150,59 @@
         }
         .input-area {
             display: flex;
-            gap: 12px;
+            align-items: flex-end;
+            gap: 8px;
             margin-bottom: 24px;
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 8px;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .input-area:focus-within {
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 4px rgba(0,113,227,0.1);
         }
         textarea {
             flex: 1;
-            padding: 16px;
-            border: 1px solid var(--border-color);
+            padding: 12px;
+            border: none;
             border-radius: 12px;
-            font-size: 17px;
+            font-size: 15px;
             line-height: 1.47059;
-            resize: vertical;
-            min-height: 80px;
+            resize: none;
+            min-height: 40px;
+            max-height: 200px;
             font-family: inherit;
-            transition: border-color 0.2s, box-shadow 0.2s;
-            background: #fafafa;
+            background: transparent;
         }
         textarea:focus {
             outline: none;
-            border-color: var(--accent-color);
-            box-shadow: 0 0 0 4px rgba(0,113,227,0.1);
-            background: #fff;
         }
-        .btn {
-            padding: 16px 32px;
-            background: var(--accent-color);
-            color: #fff;
+        .send-btn {
+            width: 40px;
+            height: 40px;
+            background: #1d1d1f;
+            color: white;
             border: none;
-            border-radius: 980px;
-            font-size: 14px;
-            font-weight: 500;
+            border-radius: 12px;
             cursor: pointer;
             transition: background 0.2s;
-            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
         }
-        .btn:hover {
-            background: var(--accent-hover);
+        .send-btn:hover {
+            background: #000;
         }
-        .btn:disabled {
-            opacity: 0.5;
+        .send-btn:disabled {
+            background: var(--border-color);
             cursor: not-allowed;
+        }
+        .send-btn svg {
+            width: 20px;
+            height: 20px;
         }
         .response-area {
             display: grid;
@@ -310,8 +323,12 @@
             </div>
             
             <div class="input-area">
-                <textarea id="userMessage" placeholder="输入你的问题..." rows="3"></textarea>
-                <button id="sendBtn" class="btn" onclick="send()">发送</button>
+                <textarea id="userMessage" placeholder="输入你的问题..." rows="1" onkeydown="handleKeydown(event)"></textarea>
+                <button id="sendBtn" class="send-btn" onclick="send()" title="发送">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 19V5M5 12l7-7 7 7"/>
+                    </svg>
+                </button>
             </div>
         </section>
         
@@ -395,6 +412,13 @@
         
         init();
         
+        function handleKeydown(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                send();
+            }
+        }
+        
         async function send() {
             const message = document.getElementById('userMessage').value.trim();
             if (!message) {
@@ -413,7 +437,6 @@
             
             const btn = document.getElementById('sendBtn');
             btn.disabled = true;
-            btn.textContent = '思考中...';
             
             document.getElementById('responseArea').innerHTML = `
                 <div class="loading">
@@ -448,7 +471,6 @@
                 `;
             } finally {
                 btn.disabled = false;
-                btn.textContent = '发送';
             }
         }
         
@@ -480,12 +502,6 @@
             document.getElementById('responseArea').innerHTML = html;
         }
         
-        document.getElementById('userMessage').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                send();
-            }
-        });
     </script>
 </body>
 </html>
