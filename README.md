@@ -19,6 +19,7 @@
 - ⚡ **流式输出** - SSE 实时打字机效果，真正并发
 - 📝 **Markdown** - 支持代码/表格/列表渲染
 - 📈 **数据统计** - 模型使用次数/延迟/会话数/消息数
+- 📁 **文件下载** - 安全白名单机制，支持中文文件名，移动端适配
 
 ## 🚀 快速启动
 
@@ -67,6 +68,34 @@ python3 app/main.py
 2. 输入问题
 3. 点击"发送"（或按 Enter）
 4. 查看不同模型的回答对比
+
+## 📁 文件下载
+
+访问 `/files` 页面可下载预设的工作区文件。
+
+**安全特性：**
+- 🔒 白名单机制 - 只允许下载配置的文件
+- 🛡️ 路径验证 - 双重检查，防止路径遍历攻击
+- 🔐 只读访问 - 无上传/修改/删除功能
+- 📱 移动端适配 - 汉堡菜单，响应式布局
+- 🌐 中文支持 - RFC 5987 编码，完美支持中文文件名
+
+**配置方式：**
+编辑 `app/files.json`（热加载，无需重启）：
+
+```json
+{
+  "files": {
+    "文件名.xlsx": {
+      "path": "/root/.openclaw/workspace/eco_proj/文件名.xlsx",
+      "desc": "文件描述",
+      "type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    }
+  }
+}
+```
+
+⚠️ **注意**：`files.json` 包含真实路径，已加入 `.gitignore`，不要提交到仓库。
 
 ## 📊 可用模型
 
@@ -118,7 +147,11 @@ ai_proj/
 │   ├── index.html           # 对话页面
 │   ├── login.html           # 登录页面
 │   ├── settings.html        # 设置页面
-│   └── profile.html         # 个人主页
+│   ├── profile.html         # 个人主页
+│   └── files.html           # 文件下载页面
+├── app/
+│   ├── main.py              # FastAPI 后端
+│   └── file_config.py       # 文件下载配置（热加载）
 ├── static/                  # 静态资源
 ├── tests/                   # 单元测试
 ├── k8s/                     # Kubernetes 部署配置
