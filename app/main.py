@@ -11,6 +11,7 @@ import time
 import sqlite3
 import uuid
 import json
+import file_config
 
 app = FastAPI(title="AI Model Comparator")
 
@@ -83,8 +84,8 @@ from starlette.middleware.base import BaseHTTPMiddleware
 class AuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         # 跳过登录、静态文件和公开 API
-        public_paths = ["/login", "/api/login", "/api/register", "/static", "/api/models"]
-        if request.url.path in public_paths or request.url.path.startswith("/docs"):
+        public_paths = ["/login", "/api/login", "/api/register", "/static", "/api/models", "/files", "/api/files/list"]
+        if request.url.path in public_paths or request.url.path.startswith("/docs") or request.url.path.startswith("/api/files/download"):
             return await call_next(request)
         
         session_id = request.cookies.get("session_id")
@@ -269,6 +270,11 @@ async def settings_page():
 @app.get("/profile")
 async def profile_page():
     return FileResponse("templates/profile.html")
+
+@app.get("/files")
+async def files_page():
+    """文件下载页面"""
+    return FileResponse("templates/files.html")
 
 @app.post("/api/login")
 async def api_login(request: Request):
@@ -1046,6 +1052,45 @@ async def chat(request: ChatRequest, request_obj: Request):
         session_id=session_id,
         responses=results,
         total_latency_ms=total_latency
+    )
+
+# ==================== 文件下载 API ====================
+
+@app.get("/api/files/list")
+async def api_get_file_list():
+    """获取允许下载的文件列表"""
+    return file_config.get_file_list()
+
+@app.get("/api/files/download/{filename:path}")
+async def api_download_file(filename: str):
+    """
+    下载指定文件
+    严格白名单验证，防止路径遍历攻击
+    """
+    from urllib.parse import quote
+    
+    # 验证文件是否在白名单中
+    real_path = file_config.validate_file_path(filename)
+    
+    if not real_path:
+        raise HTTPException(status_code=403, detail="文件不在允许列表中")
+    
+    # 获取文件信息（从配置文件加载）
+    config = file_config.load_config()
+    file_info = config.get(filename)
+    if not file_info:
+        raise HTTPException(status_code=404, detail="文件不存在")
+    
+    # URL 编码文件名以支持中文（RFC 5987）
+    encoded_filename = quote(filename)
+    
+    return FileResponse(
+        real_path,
+        media_type=file_info.get("type", "application/octet-stream"),
+        headers={
+            "Content-Disposition": f'attachment; filename*=UTF-8\'\'{encoded_filename}',
+            "X-Content-Type-Options": "nosniff"
+        }
     )
 
 if __name__ == "__main__":
