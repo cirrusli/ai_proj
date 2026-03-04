@@ -271,8 +271,8 @@
             /* 移动端下拉菜单 */
             .mobile-nav {
                 display: none;
-                position: absolute;
-                top: 100%;
+                position: fixed;  /* 改为 fixed，避免错位 */
+                top: 60px;  /* 导航栏高度 */
                 left: 0;
                 right: 0;
                 background: white;
@@ -281,6 +281,7 @@
                 flex-direction: column;
                 gap: 4px;
                 box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+                z-index: 999;
             }
             
             .mobile-nav.show {
