@@ -36,60 +36,29 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            gap: 16px;
         }
-        .header-title {
-            font-size: 17px;
+        .header h1 {
+            font-size: 21px;
             font-weight: 600;
             color: var(--text-primary);
-            flex-shrink: 0;
         }
         .nav-links {
             display: flex;
-            gap: 4px;
-            align-items: center;
-            flex-shrink: 0;
+            gap: 8px;
         }
         .nav-links a {
-            color: var(--text-secondary);
+            color: var(--accent-color);
             text-decoration: none;
-            padding: 6px 12px;
+            padding: 8px 16px;
             border-radius: 980px;
             font-size: 12px;
             font-weight: 400;
             transition: background 0.2s;
-            white-space: nowrap;
         }
-        .nav-links a:hover { 
+        .nav-links a:hover {
             background: #f5f5f7;
-            color: var(--accent-color);
         }
         .main { max-width: 980px; margin: 0 auto; padding: 40px 22px 80px; }
-        
-        /* 移动端适配 */
-        @media (max-width: 768px) {
-            .header-content {
-                padding: 0 12px;
-                height: 48px;
-                gap: 8px;
-            }
-            .header-title {
-                font-size: 15px;
-            }
-            .nav-links {
-                gap: 2px;
-                overflow-x: auto;
-                -webkit-overflow-scrolling: touch;
-                scrollbar-width: none;
-            }
-            .nav-links::-webkit-scrollbar {
-                display: none;
-            }
-            .nav-links a {
-                font-size: 11px;
-                padding: 5px 10px;
-            }
-        }
         
         .profile-header {
             display: flex;
@@ -196,7 +165,7 @@
 <body>
     <header class="header">
         <div class="header-content">
-            <div class="header-title">个人主页</div>
+            <h1>个人主页</h1>
             <nav class="nav-links">
                 <a href="/">对话</a>
                 <a href="/settings">设置</a>
