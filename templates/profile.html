@@ -66,6 +66,31 @@
         }
         .main { max-width: 980px; margin: 0 auto; padding: 40px 22px 80px; }
         
+        /* 移动端适配 */
+        @media (max-width: 768px) {
+            .header-content {
+                padding: 0 12px;
+                height: 48px;
+                gap: 8px;
+            }
+            .header-title {
+                font-size: 15px;
+            }
+            .nav-links {
+                gap: 2px;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                scrollbar-width: none;
+            }
+            .nav-links::-webkit-scrollbar {
+                display: none;
+            }
+            .nav-links a {
+                font-size: 11px;
+                padding: 5px 10px;
+            }
+        }
+        
         .profile-header {
             display: flex;
             gap: 32px;
